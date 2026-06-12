@@ -1,5 +1,5 @@
 export interface PricingInput {
-  acquisitionCost: number;
+  itemPrice: number;
   shippingCost: number;
   taxRate: number; // percentage
   directCosts: number;
@@ -25,7 +25,7 @@ export interface PricingOutput {
 export class PricingService {
   static calculate(input: PricingInput): PricingOutput {
     const {
-      acquisitionCost,
+      itemPrice,
       shippingCost,
       taxRate,
       directCosts,
@@ -35,12 +35,15 @@ export class PricingService {
       hourlyRate,
     } = input;
 
-    // 1. Calculate Tax Amount (usually on acquisition cost or total base)
-    // For simplicity, let's assume tax is percentage over acquisition cost
-    const taxAmount = acquisitionCost * (taxRate / 100);
+    // 1. Calculate Tax Amount
+    // o calculo do imposto (ICMS) é feito com base no valor final do pedido (preco do item + frete + beneficios/descontos).
+    // Outros benefícios/descontos incluem cupons, créditos, moedas etc, do AliExpress.
+    const icmsTax = (itemPrice + shippingCost) * (taxRate / 100);
 
-    // 2. Base Cost
-    const totalBaseCost = acquisitionCost + shippingCost + taxAmount + directCosts + (timeSpent * hourlyRate);
+    const myWage = timeSpent * hourlyRate;
+
+    // 2. Base Cost + myWage
+    const totalBaseCost = itemPrice + shippingCost + icmsTax + directCosts;
 
     // 3. Adjusted for Loss
     const costWithLoss = lossIndex > 0 ? totalBaseCost / (1 - lossIndex / 100) : totalBaseCost;
@@ -61,7 +64,7 @@ export class PricingService {
         const netProfit = price - totalBaseCost;
         const contributionMargin = price > 0 ? (netProfit / price) * 100 : 0;
         const markupAtPrice = totalBaseCost > 0 ? price / totalBaseCost : 0;
-        
+
         return {
           markup: markupAtPrice,
           contributionMargin,

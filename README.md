@@ -5,7 +5,7 @@ This is a fastify-based API for managing store inventory.
 ## Requirements
 
 - **Node.js** 24.05.0
-- **Typescript** 
+- **Typescript**
 - **Fastify**
 - **Prisma**
 - **Zod**
@@ -13,7 +13,6 @@ This is a fastify-based API for managing store inventory.
 - **Fastify Jwt**
 - **Fastify Cors**
 - **Eslint**
-- **Prettier**
 
 ## Instructions
 
