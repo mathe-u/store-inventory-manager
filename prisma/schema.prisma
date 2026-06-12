@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+}
+
+model GlobalSettings {
+  id                   String @id @default("default")
+  hourlyRate           Float  @default(0)
+  defaultTaxRate       Float  @default(0)
+  fixedMonthlyCosts    Float  @default(0)
+  variableMonthlyCosts Float  @default(0)
+  investmentRate       Float  @default(0)
+}
+
+model Product {
+  id              String   @id @default(uuid())
+  name            String
+  imageUrl        String?
+  stockQuantity   Int      @default(0)
+  minStockAlert   Int      @default(5)
+  metadata        String   // JSON string for dynamic attributes
+  
+  // Costs
+  acquisitionCost Float    @default(0)
+  shippingCost    Float    @default(0)
+  taxRate         Float    @default(0)
+  directCosts     Float    @default(0)
+  timeSpent       Float    @default(0) // hours
+  lossIndex       Float    @default(0) // percentage
+  
+  desiredMargin   Float    @default(30) // percentage
+  
+  sales           Sale[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Sale {
+  id               String   @id @default(uuid())
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id])
+  quantity         Int
+  finalPrice       Float
+  calculatedProfit Float    // Profit calculated at the time of sale
+  createdAt        DateTime @default(now())
+}
