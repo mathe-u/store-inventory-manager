@@ -27,6 +27,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     // Top selling products
     const productSales: Record<string, { name: string; quantity: number }> = {};
     const salesWithProduct = await prisma.sale.findMany({
+      where: { status: 'COMPLETED' },
       include: { product: true }
     });
 
@@ -55,7 +56,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     const { productId } = paramsSchema.parse(request.params);
 
     const sales = await prisma.sale.findMany({
-      where: { productId },
+      where: { productId, status: 'COMPLETED' },
       orderBy: { createdAt: 'asc' },
       select: { createdAt: true, finalPrice: true },
     });

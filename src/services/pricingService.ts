@@ -52,6 +52,7 @@ export class PricingService {
     const totalBaseCost = itemPrice + shippingCost + icmsTax + directCosts + sellerWage;
 
     // 3. Adjusted for Loss
+    // Calculado automaticamente baseado nas vendas registradas como perda (LOSS)
     const costWithLoss = lossIndex > 0 ? totalBaseCost / (1 - lossIndex / 100) : totalBaseCost;
 
     // 4. Suggested Price based on Desired Margin

@@ -51,12 +51,20 @@ model Product {
   updatedAt       DateTime @updatedAt
 }
 
+enum SaleStatus {
+  COMPLETED
+  LOSS
+  RETURNED
+}
+
 model Sale {
-  id               String   @id @default(uuid())
+  id               String     @id @default(uuid())
   productId        String
-  product          Product  @relation(fields: [productId], references: [id])
+  product          Product    @relation(fields: [productId], references: [id])
   quantity         Int
   finalPrice       Float
-  calculatedProfit Float    // Profit calculated at the time of sale
-  createdAt        DateTime @default(now())
+  calculatedProfit Float      // Profit calculated at the time of sale
+  status           SaleStatus @default(COMPLETED)
+  createdAt        DateTime   @default(now())
 }
+

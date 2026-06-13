@@ -56,5 +56,5 @@ app.listen({ port: port, host: '0.0.0.0' })
     process.exit(1)
   }).then(() => {
     console.log(`HTTP Server Running on http://localhost:${port}`);
-    console.log(`Docs available at http://localhost:${port}/api/v1/docs`)
+    console.log(`Docs available at http://localhost:${port}/api/v1/docs`);
   });
