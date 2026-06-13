@@ -58,7 +58,7 @@ export async function productRoutes(app: FastifyInstance) {
     const hourlyRate = settings?.hourlyRate ?? 0;
 
     const pricing = PricingService.calculate({
-      acquisitionCost: product.acquisitionCost,
+      itemPrice: product.acquisitionCost,
       shippingCost: product.shippingCost,
       taxRate: product.taxRate,
       directCosts: product.directCosts,

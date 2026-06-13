@@ -38,12 +38,18 @@ export class PricingService {
     // 1. Calculate Tax Amount
     // o calculo do imposto (ICMS) é feito com base no valor final do pedido (preco do item + frete + beneficios/descontos).
     // Outros benefícios/descontos incluem cupons, créditos, moedas etc, do AliExpress.
-    const icmsTax = (itemPrice + shippingCost) * (taxRate / 100);
+    const discountValue = 0;
 
-    const myWage = timeSpent * hourlyRate;
+    const customsValue = itemPrice - discountValue + shippingCost;
 
-    // 2. Base Cost + myWage
-    const totalBaseCost = itemPrice + shippingCost + icmsTax + directCosts;
+    const baseICMS = customsValue / (1 - taxRate / 100);
+
+    const icmsTax = baseICMS * (taxRate / 100);
+
+    const sellerWage = timeSpent * hourlyRate;
+
+    // 2. Base Cost + sellerWage
+    const totalBaseCost = itemPrice + shippingCost + icmsTax + directCosts + sellerWage;
 
     // 3. Adjusted for Loss
     const costWithLoss = lossIndex > 0 ? totalBaseCost / (1 - lossIndex / 100) : totalBaseCost;
