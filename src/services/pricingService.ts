@@ -1,5 +1,5 @@
 export interface PricingInput {
-  itemPrice: number;
+  acquisitionCost: number;
   shippingCost: number;
   taxRate: number; // percentage
   directCosts: number;
@@ -25,7 +25,7 @@ export interface PricingOutput {
 export class PricingService {
   static calculate(input: PricingInput): PricingOutput {
     const {
-      itemPrice,
+      acquisitionCost,
       shippingCost,
       taxRate,
       directCosts,
@@ -40,16 +40,16 @@ export class PricingService {
     // Outros benefícios/descontos incluem cupons, créditos, moedas etc, do AliExpress.
     const discountValue = 0;
 
-    const customsValue = itemPrice - discountValue + shippingCost;
+    const customsValue = acquisitionCost - discountValue + shippingCost;
 
-    const baseICMS = customsValue / (1 - taxRate / 100);
+    const baseICMS = customsValue / (1 - taxRate);
 
-    const icmsTax = baseICMS * (taxRate / 100);
+    const icmsTax = baseICMS * taxRate;
 
     const sellerWage = timeSpent * hourlyRate;
 
     // 2. Base Cost + sellerWage
-    const totalBaseCost = itemPrice + shippingCost + icmsTax + directCosts + sellerWage;
+    const totalBaseCost = acquisitionCost + shippingCost + icmsTax + directCosts + sellerWage;
 
     // 3. Adjusted for Loss
     // Calculado automaticamente baseado nas vendas registradas como perda (LOSS)

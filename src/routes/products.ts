@@ -56,11 +56,12 @@ export async function productRoutes(app: FastifyInstance) {
 
     const settings = await prisma.globalSettings.findUnique({ where: { id: 'default' } });
     const hourlyRate = settings?.hourlyRate ?? 0;
+    const defaultTaxRate = settings?.defaultTaxRate ?? 0;
 
     const pricing = PricingService.calculate({
-      itemPrice: product.acquisitionCost,
+      acquisitionCost: product.acquisitionCost,
       shippingCost: product.shippingCost,
-      taxRate: product.taxRate,
+      taxRate: defaultTaxRate,
       directCosts: product.directCosts,
       timeSpent: product.timeSpent,
       lossIndex: product.lossIndex,
