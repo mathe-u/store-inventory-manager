@@ -30,7 +30,7 @@ export class PricingService {
       shippingCost,
       taxRate,
       directCosts,
-      // investmentRate,
+      investmentRate,
       timeSpent,
       lossIndex,
       desiredMargin,
@@ -59,10 +59,13 @@ export class PricingService {
 
     // 4. Suggested Price based on Desired Margin
     // Markup strategy: Price = Cost / (1 - margin)
+
     const suggestedPrice = costWithLoss / (1 - desiredMargin);
 
     // const markup = totalBaseCost > 0 ? (suggestedPrice / totalBaseCost) : 0;
-    const markup = 1 / ((1 - lossIndex) * (1 - desiredMargin));
+    const markup = 1 / ((1 - lossIndex) * (1 - desiredMargin) * (1 - investmentRate));
+
+    // const suggestedPrice = totalBaseCost * markup;
 
     return {
       totalBaseCost,
