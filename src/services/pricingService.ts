@@ -40,6 +40,7 @@ export class PricingService {
     // 1. Calculate Tax Amount
     // o calculo do imposto (ICMS) é feito com base no valor final do pedido (preco do item + frete + beneficios/descontos).
     // Outros benefícios/descontos incluem cupons, créditos, moedas etc, do AliExpress.
+    // 2026 imposto de importacao nao eh mais cobrado para compras abaixo de $50, so icms
     // acquisitionCost = preco do item
     const discountValue = 0;
     const customsValue = acquisitionCost - discountValue + shippingCost;
@@ -74,14 +75,14 @@ export class PricingService {
       markup,
       netProfit: suggestedPrice - totalBaseCost - (suggestedPrice * lossIndex) - (suggestedPrice * investmentRate),
       marginAtPrice: (price: number) => {
-        const netProfit = price - totalBaseCost;
-        const contributionMargin = price > 0 ? (netProfit / price) * 100 : 0;
+        const currentNetProfit = price - totalBaseCost - (price * lossIndex) - (price * investmentRate);
+        const contributionMargin = price > 0 ? (currentNetProfit / price) * 100 : 0;
         const markupAtPrice = totalBaseCost > 0 ? price / totalBaseCost : 0;
 
         return {
           markup: markupAtPrice,
           contributionMargin,
-          netProfit,
+          netProfit: currentNetProfit,
         };
       },
     };
