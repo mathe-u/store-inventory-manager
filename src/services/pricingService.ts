@@ -60,19 +60,19 @@ export class PricingService {
     // 4. Suggested Price based on Desired Margin
     // Markup strategy: Price = Cost / (1 - margin)
 
-    const suggestedPrice = costWithLoss / (1 - desiredMargin);
+    // const suggestedPrice = costWithLoss / (1 - desiredMargin);
 
     // const markup = totalBaseCost > 0 ? (suggestedPrice / totalBaseCost) : 0;
-    const markup = 1 / ((1 - lossIndex) * (1 - desiredMargin) * (1 - investmentRate));
+    const markup = 1 / ((1 - lossIndex) * (1 - desiredMargin - investmentRate));
 
-    // const suggestedPrice = totalBaseCost * markup;
+    const suggestedPrice = totalBaseCost * markup;
 
     return {
       totalBaseCost,
       costWithLoss,
       suggestedPrice,
       markup,
-      netProfit: suggestedPrice - totalBaseCost,
+      netProfit: suggestedPrice - totalBaseCost - (suggestedPrice * lossIndex) - (suggestedPrice * investmentRate),
       marginAtPrice: (price: number) => {
         const netProfit = price - totalBaseCost;
         const contributionMargin = price > 0 ? (netProfit / price) * 100 : 0;
