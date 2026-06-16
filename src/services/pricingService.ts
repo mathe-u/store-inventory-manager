@@ -3,6 +3,7 @@ export interface PricingInput {
   shippingCost: number;
   taxRate: number; // percentage
   directCosts: number;
+  investmentRate: number;
   timeSpent: number; // hours
   lossIndex: number; // percentage
   desiredMargin: number; // percentage
@@ -29,6 +30,7 @@ export class PricingService {
       shippingCost,
       taxRate,
       directCosts,
+      // investmentRate,
       timeSpent,
       lossIndex,
       desiredMargin,
@@ -38,28 +40,29 @@ export class PricingService {
     // 1. Calculate Tax Amount
     // o calculo do imposto (ICMS) é feito com base no valor final do pedido (preco do item + frete + beneficios/descontos).
     // Outros benefícios/descontos incluem cupons, créditos, moedas etc, do AliExpress.
+    // acquisitionCost = preco do item
     const discountValue = 0;
-
     const customsValue = acquisitionCost - discountValue + shippingCost;
-
     const baseICMS = customsValue / (1 - taxRate);
-
     const icmsTax = baseICMS * taxRate;
-
     const sellerWage = timeSpent * hourlyRate;
 
     // 2. Base Cost + sellerWage
     const totalBaseCost = acquisitionCost + shippingCost + icmsTax + directCosts + sellerWage;
 
+    // const lossDivisor = lossIndex > 0 ? 2 : 1;
+    // const marginDivisor = desiredMargin < 100 ? (1 - desiredMargin) : 1;
+
     // 3. Adjusted for Loss
     // Calculado automaticamente baseado nas vendas registradas como perda (LOSS)
-    const costWithLoss = lossIndex > 0 ? totalBaseCost / (1 - lossIndex) : totalBaseCost;
+    const costWithLoss = totalBaseCost / (1 - lossIndex);
 
     // 4. Suggested Price based on Desired Margin
     // Markup strategy: Price = Cost / (1 - margin)
-    const suggestedPrice = desiredMargin < 100 ? costWithLoss / (1 - desiredMargin) : costWithLoss;
+    const suggestedPrice = costWithLoss / (1 - desiredMargin);
 
-    const markup = suggestedPrice / totalBaseCost;
+    // const markup = totalBaseCost > 0 ? (suggestedPrice / totalBaseCost) : 0;
+    const markup = 1 / ((1 - lossIndex) * (1 - desiredMargin));
 
     return {
       totalBaseCost,
