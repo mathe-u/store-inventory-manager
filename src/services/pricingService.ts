@@ -53,11 +53,11 @@ export class PricingService {
 
     // 3. Adjusted for Loss
     // Calculado automaticamente baseado nas vendas registradas como perda (LOSS)
-    const costWithLoss = lossIndex > 0 ? totalBaseCost / (1 - lossIndex / 100) : totalBaseCost;
+    const costWithLoss = lossIndex > 0 ? totalBaseCost / (1 - lossIndex) : totalBaseCost;
 
     // 4. Suggested Price based on Desired Margin
     // Markup strategy: Price = Cost / (1 - margin)
-    const suggestedPrice = desiredMargin < 100 ? costWithLoss / (1 - desiredMargin / 100) : costWithLoss;
+    const suggestedPrice = desiredMargin < 100 ? costWithLoss / (1 - desiredMargin) : costWithLoss;
 
     const markup = suggestedPrice / totalBaseCost;
 
