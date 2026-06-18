@@ -44,8 +44,10 @@ export class PricingService {
     // acquisitionCost = preco do item
     const discountValue = 0;
     const customsValue = acquisitionCost - discountValue + shippingCost;
-    const baseICMS = customsValue / (1 - taxRate);
+
+    const baseICMS = taxRate < 1 ? customsValue / (1 - taxRate) : customsValue;
     const icmsTax = baseICMS * taxRate;
+
     const sellerWage = timeSpent * hourlyRate;
 
     // 2. Base Cost + sellerWage
@@ -56,7 +58,11 @@ export class PricingService {
 
     // 3. Adjusted for Loss
     // Calculado automaticamente baseado nas vendas registradas como perda (LOSS)
-    const costWithLoss = totalBaseCost / (1 - lossIndex);
+    const costWithLoss = lossIndex < 1 ? totalBaseCost / (1 - lossIndex) : totalBaseCost;
+
+    const totalDeductionsRate = desiredMargin + investmentRate + lossIndex;
+
+    const divisor = totalDeductionsRate < 1 ? (1 - totalDeductionsRate) : 0.01;
 
     // 4. Suggested Price based on Desired Margin
     // Markup strategy: Price = Cost / (1 - margin)
@@ -64,16 +70,18 @@ export class PricingService {
     // const suggestedPrice = costWithLoss / (1 - desiredMargin);
 
     // const markup = totalBaseCost > 0 ? (suggestedPrice / totalBaseCost) : 0;
-    const markup = 1 / ((1 - lossIndex) * (1 - desiredMargin - investmentRate));
+    const markup = 1 / divisor;
 
     const suggestedPrice = totalBaseCost * markup;
+
+    const netProfit = suggestedPrice - totalBaseCost - (suggestedPrice * lossIndex) - (suggestedPrice * investmentRate);
 
     return {
       totalBaseCost,
       costWithLoss,
       suggestedPrice,
       markup,
-      netProfit: suggestedPrice - totalBaseCost - (suggestedPrice * lossIndex) - (suggestedPrice * investmentRate),
+      netProfit,
       marginAtPrice: (price: number) => {
         const currentNetProfit = price - totalBaseCost - (price * lossIndex) - (price * investmentRate);
         const contributionMargin = price > 0 ? (currentNetProfit / price) * 100 : 0;
