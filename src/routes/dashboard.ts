@@ -15,7 +15,8 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     // Group by month
     const monthlyStats: Record<string, { revenue: number; profit: number }> = {};
-    sales.forEach((sale: any) => {
+
+    sales.forEach((sale) => {
       const month = sale.createdAt.toISOString().slice(0, 7); // YYYY-MM
       if (!monthlyStats[month]) {
         monthlyStats[month] = { revenue: 0, profit: 0 };
@@ -31,7 +32,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
       include: { product: true }
     });
 
-    salesWithProduct.forEach((sale: any) => {
+    salesWithProduct.forEach((sale) => {
       const id = sale.productId;
       if (!productSales[id]) {
         productSales[id] = { name: sale.product.name, quantity: 0 };
@@ -52,7 +53,8 @@ export async function dashboardRoutes(app: FastifyInstance) {
   });
 
   app.get('/price-evolution/:productId', async (request) => {
-    const paramsSchema = z.object({ productId: z.string().uuid() });
+    // TODO: tratar dias que nao houver nunhuma venda
+    const paramsSchema = z.object({ productId: z.uuid() });
     const { productId } = paramsSchema.parse(request.params);
 
     const sales = await prisma.sale.findMany({
@@ -61,6 +63,24 @@ export async function dashboardRoutes(app: FastifyInstance) {
       select: { createdAt: true, finalPrice: true },
     });
 
-    return sales;
+    const dailyPriceMap: Record<string, {date: string; sumPrice: number; count: number }> = {};
+
+    sales.forEach((sale) => {
+      const dateStr = sale.createdAt.toISOString().slice(0, 10);
+
+      if (!dailyPriceMap[dateStr]) {
+        dailyPriceMap[dateStr] = { date: dateStr, sumPrice: 0, count: 0 };
+      }
+
+      dailyPriceMap[dateStr].sumPrice += sale.finalPrice;
+      dailyPriceMap[dateStr].count += 1;
+    });
+
+    const timeSeries = Object.values(dailyPriceMap).map((day) => ({
+      date: day.date,
+      price: Number((day.sumPrice / day.count).toFixed(2)),
+    }));
+
+    return timeSeries;
   });
 }
