@@ -26,7 +26,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     });
 
     // Top selling products
-    const productSales: Record<string, { name: string; quantity: number }> = {};
+    const productSales: Record<string, { name: string; category: string; quantity: number }> = {};
     const salesWithProduct = await prisma.sale.findMany({
       where: { status: 'COMPLETED' },
       include: { product: true }
@@ -35,7 +35,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     salesWithProduct.forEach((sale) => {
       const id = sale.productId;
       if (!productSales[id]) {
-        productSales[id] = { name: sale.product.name, quantity: 0 };
+        productSales[id] = { name: sale.product.name, category: '', quantity: 0 };
       }
       productSales[id].quantity += sale.quantity;
     });

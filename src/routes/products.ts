@@ -43,7 +43,7 @@ export async function productRoutes(app: FastifyInstance) {
   });
 
   app.get('/:id', async (request, reply) => {
-    const paramsSchema = z.object({ id: z.string().uuid() });
+    const paramsSchema = z.object({ id: z.uuid() });
     const { id } = paramsSchema.parse(request.params);
 
     const product = await prisma.product.findUnique({
@@ -79,7 +79,7 @@ export async function productRoutes(app: FastifyInstance) {
   });
 
   app.put('/:id', async (request) => {
-    const paramsSchema = z.object({ id: z.string().uuid() });
+    const paramsSchema = z.object({ id: z.uuid() });
     const { id } = paramsSchema.parse(request.params);
 
     const productSchema = z.object({
@@ -112,7 +112,7 @@ export async function productRoutes(app: FastifyInstance) {
   });
 
   app.delete('/:id', async (request, reply) => {
-    const paramsSchema = z.object({ id: z.string().uuid() });
+    const paramsSchema = z.object({ id: z.uuid() });
     const { id } = paramsSchema.parse(request.params);
 
     await prisma.product.delete({ where: { id } });
