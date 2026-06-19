@@ -33,6 +33,7 @@ export async function saleRoutes(app: FastifyInstance) {
 
         const settings = await tx.globalSettings.findUnique({ where: { id: 'default' } });
         const hourlyRate = settings?.hourlyRate ?? 0;
+        const investmentRate = settings?.investmentRate ?? 0;
 
         // Calculate pricing
         const pricing = PricingService.calculate({
@@ -40,6 +41,7 @@ export async function saleRoutes(app: FastifyInstance) {
           shippingCost: product.shippingCost,
           taxRate: product.taxRate,
           directCosts: product.directCosts,
+          investmentRate: investmentRate,
           timeSpent: product.timeSpent,
           lossIndex: product.lossIndex,
           desiredMargin: product.desiredMargin,

@@ -53,8 +53,13 @@ export class PricingService {
     // 2. Base Cost + sellerWage
     const totalBaseCost = acquisitionCost + shippingCost + icmsTax + directCosts + sellerWage;
 
+    // TODO: seria interessante ter uma 'gordura' da negociacao
+    // Usuários amam negociar. Se esse código cuspir um suggestedPrice
+    // de R$ 100,00 e você anunciar por R$ 100,00, o cliente vai oferecer R$ 80,00 ou R$ 90,00. Se você
+    // aceitar, estará corroendo a desiredMargin.
+
     // 3. Divisor do Markup (Taxas que incidem sobre o PREÇO FINAL de venda)
-    // Inclui a margem de lucro, marketing, perdas e impostos de nota fiscal de venda
+    // Inclui a margem de lucro, reinvestimento, perdas, custos variaveis, custos fixos
     const totalDeductionsRate = desiredMargin + investmentRate + lossIndex;
 
     const divisor = totalDeductionsRate < 1 ? (1 - totalDeductionsRate) : 0.01;
@@ -88,3 +93,22 @@ export class PricingService {
     };
   }
 }
+
+// Faturamento é o valor total arrecadado por uma empresa através da venda de produtos ou serviços em um determinado período.
+// Ele representa a entrada bruta de dinheiro, sendo calculado multiplicando a quantidade vendida pelo preço unitário,
+// sem descontar custos ou despesas.
+
+// Para uma visão clara da saúde do seu negócio, é essencial entender os diferentes indicadores financeiros:
+
+// 1. Faturamento Bruto vs. Líquido
+//   Bruto: É o montante total das vendas.
+//   Líquido: É o faturamento bruto menos as devoluções, descontos e impostos.
+
+// 2. Faturamento x Receita
+//   Faturamento: Refere-se ao valor total emitido em notas fiscais ou vendas (incluindo vendas parceladas).
+//   Receita: É o dinheiro que efetivamente entra no caixa da empresa após o pagamento pelo cliente.
+
+// 3. Faturamento x Lucro
+//   Faturamento: É o dinheiro que entra no negócio.
+//   Lucro: É o que sobra do faturamento depois de pagar todos os custos de produção, impostos e despesas operacionais.
+//   Lucro é o dinheiro que realmente pertence à empresa ou aos sócios.
