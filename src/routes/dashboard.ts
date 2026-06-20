@@ -10,19 +10,33 @@ export async function dashboardRoutes(app: FastifyInstance) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const totalRevenue = sales.reduce((acc, sale) => acc + (sale.finalPrice * sale.quantity), 0 as number);
-    const totalProfit = sales.reduce((acc, sale) => acc + sale.calculatedProfit, 0 as number);
+    const grossRevenue = sales.reduce((acc, sale) => acc + (sale.finalPrice * sale.quantity), 0 as number);
+
+    const netRevenue = sales.filter(sale => sale.status === 'COMPLETED').reduce((acc, sale) => acc + (sale.finalPrice * sale.quantity), 0);
+
+    const grossProfit = 0;
+
+    const netProfit = sales.reduce((acc, sale) => acc + sale.calculatedProfit, 0 as number);
+
+    const totalOrders = 0;
 
     // Group by month
-    const monthlyStats: Record<string, { revenue: number; profit: number }> = {};
+    // grafico de barras duplas (faturamento bruto, custos) ao longo do tempo (mes)
+    const monthlyStats: Record<string, { grossRevenue: number; netRevenue: number; netProfit: number }> = {};
 
     sales.forEach((sale) => {
       const month = sale.createdAt.toISOString().slice(0, 7); // YYYY-MM
       if (!monthlyStats[month]) {
-        monthlyStats[month] = { revenue: 0, profit: 0 };
+        monthlyStats[month] = { grossRevenue: 0, netRevenue: 0, netProfit: 0 };
       }
-      monthlyStats[month].revenue += sale.finalPrice * sale.quantity;
-      monthlyStats[month].profit += sale.calculatedProfit;
+
+      const saleValue = sale.finalPrice * sale.quantity;
+
+      if (sale.status == 'COMPLETED') {
+        monthlyStats[month].netRevenue += saleValue;
+      }
+
+      monthlyStats[month].netProfit += sale.calculatedProfit;
     });
 
     // Top selling products
@@ -45,8 +59,11 @@ export async function dashboardRoutes(app: FastifyInstance) {
       .slice(0, 5);
 
     return {
-      totalRevenue,
-      totalProfit,
+      grossRevenue,
+      netRevenue,
+      grossProfit,
+      netProfit,
+      totalOrders,
       monthlyStats: Object.entries(monthlyStats).map(([month, data]) => ({ month, ...data })),
       topSelling,
     };
