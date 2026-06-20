@@ -6,27 +6,31 @@ import { PricingService } from '../services/pricingService.js';
 export async function productRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
 
+  // List all products (includes category)
   app.get('/', async () => {
     const products = await prisma.product.findMany({
       orderBy: { createdAt: 'desc' },
+      include: { category: true },
     });
     return products;
   });
 
+  // Create product
   app.post('/', async (request, reply) => {
     const productSchema = z.object({
       name: z.string(),
       imageUrl: z.string().optional(),
       stockQuantity: z.number().int().default(0),
       minStockAlert: z.number().int().default(5),
-      metadata: z.record(z.string(), z.any()), // Frontend sends object, we stringify
+      metadata: z.record(z.string(), z.any()),
       acquisitionCost: z.number().default(0),
       shippingCost: z.number().default(0),
-      taxRate: z.number().default(0),
+      taxRate: z.number().default(0),        // stored as decimal: 0.18 = 18%
       directCosts: z.number().default(0),
       timeSpent: z.number().default(0),
-      lossIndex: z.number().default(0),
-      desiredMargin: z.number().default(30),
+      lossIndex: z.number().default(0),      // stored as decimal: 0.05 = 5%
+      desiredMargin: z.number().default(0.30), // stored as decimal: 0.30 = 30%
+      categoryId: z.uuid().optional(),
     });
 
     const body = productSchema.parse(request.body);
@@ -35,19 +39,23 @@ export async function productRoutes(app: FastifyInstance) {
       data: {
         ...body,
         imageUrl: body.imageUrl ?? null,
+        categoryId: body.categoryId ?? null,
         metadata: JSON.stringify(body.metadata),
       },
+      include: { category: true },
     });
 
     return reply.status(201).send(product);
   });
 
+  // Get single product with pricing calculation
   app.get('/:id', async (request, reply) => {
     const paramsSchema = z.object({ id: z.uuid() });
     const { id } = paramsSchema.parse(request.params);
 
     const product = await prisma.product.findUnique({
       where: { id },
+      include: { category: true },
     });
 
     if (!product) {
@@ -78,6 +86,7 @@ export async function productRoutes(app: FastifyInstance) {
     };
   });
 
+  // Update product
   app.put('/:id', async (request) => {
     const paramsSchema = z.object({ id: z.uuid() });
     const { id } = paramsSchema.parse(request.params);
@@ -95,6 +104,7 @@ export async function productRoutes(app: FastifyInstance) {
       timeSpent: z.number().optional(),
       lossIndex: z.number().optional(),
       desiredMargin: z.number().optional(),
+      categoryId: z.uuid().nullable().optional(),
     });
 
     const body = productSchema.parse(request.body);
@@ -106,11 +116,13 @@ export async function productRoutes(app: FastifyInstance) {
     const product = await prisma.product.update({
       where: { id },
       data: updateData,
+      include: { category: true },
     });
 
     return product;
   });
 
+  // Delete product
   app.delete('/:id', async (request, reply) => {
     const paramsSchema = z.object({ id: z.uuid() });
     const { id } = paramsSchema.parse(request.params);

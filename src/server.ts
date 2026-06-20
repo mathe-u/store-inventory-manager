@@ -7,6 +7,7 @@ import { productRoutes } from './routes/products.js';
 import { settingsRoutes } from './routes/settings.js';
 import { saleRoutes } from './routes/sales.js';
 import { dashboardRoutes } from './routes/dashboard.js';
+import { categoryRoutes } from './routes/categories.js';
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -49,6 +50,7 @@ app.register(productRoutes, { prefix: '/api/v1/products' });
 app.register(settingsRoutes, { prefix: '/api/v1/settings' });
 app.register(saleRoutes, { prefix: '/api/v1/sales' });
 app.register(dashboardRoutes, { prefix: '/api/v1/dashboard' });
+app.register(categoryRoutes, { prefix: '/api/v1/categories' });
 
 app.listen({ port: port, host: '0.0.0.0' })
   .catch(error => {

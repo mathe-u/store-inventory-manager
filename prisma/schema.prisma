@@ -19,6 +19,16 @@ model User {
   password String
 }
 
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?   
+  color       String    @default("#6750A4") // hex color for UI badges
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 model GlobalSettings {
   id                   String @id @default("default")
   hourlyRate           Float  @default(0)
@@ -29,26 +39,30 @@ model GlobalSettings {
 }
 
 model Product {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   name            String
   imageUrl        String?
-  stockQuantity   Int      @default(0)
-  minStockAlert   Int      @default(5)
-  metadata        String   // JSON string for dynamic attributes
+  stockQuantity   Int       @default(0)
+  minStockAlert   Int       @default(5)
+  metadata        String    // JSON string for dynamic attributes
+
+  // Category relation (optional)
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
   
   // Costs
-  acquisitionCost Float    @default(0)
-  shippingCost    Float    @default(0)
-  taxRate         Float    @default(0)
-  directCosts     Float    @default(0)
-  timeSpent       Float    @default(0) // hours
-  lossIndex       Float    @default(0) // percentage
+  acquisitionCost Float     @default(0)
+  shippingCost    Float     @default(0)
+  taxRate         Float     @default(0)
+  directCosts     Float     @default(0)
+  timeSpent       Float     @default(0) // hours
+  lossIndex       Float     @default(0) // percentage as decimal (0.05 = 5%)
   
-  desiredMargin   Float    @default(30) // percentage
+  desiredMargin   Float     @default(0.30) // percentage as decimal (0.30 = 30%)
   
   sales           Sale[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 enum SaleStatus {
