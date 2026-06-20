@@ -37,7 +37,10 @@ export async function categoryRoutes(app: FastifyInstance) {
     const exists = await prisma.category.findUnique({ where: { name: body.name } });
     if (exists) return reply.status(409).send({ message: 'Category already exists' });
 
-    const category = await prisma.category.create({ data: body });
+    const category = await prisma.category.create({ data: {
+      name: body.name, description: body.description ?? null,
+      ...(body.color ? { color : body.color } : {})
+    } });
     return reply.status(201).send(category);
   });
 
