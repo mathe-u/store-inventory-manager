@@ -5,8 +5,22 @@ import { prisma } from '../lib/prisma.js';
 export async function dashboardRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
 
-  app.get('/stats', async () => {
+  app.get('/stats', async (request) => {
+    const querySchema = z.object({
+      days: z.coerce.number().positive().optional()
+    });
+
+    const { days } = querySchema.parse(request.query);
+
+    let dateFilter = {};
+    if (days) {
+     const startDate = new Date();
+     startDate.setDate(startDate.getDate() - days);
+     dateFilter = { createdAt: { gte: startDate } };
+    }
+
     const sales = await prisma.sale.findMany({
+      where: dateFilter,
       orderBy: { createdAt: 'desc' },
     });
 
@@ -18,7 +32,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     const netProfit = sales.reduce((acc, sale) => acc + sale.calculatedProfit, 0 as number);
 
-    const totalOrders = 0;
+    const totalOrders = sales.length;
 
     // Group by month
     // grafico de barras duplas (faturamento bruto, custos) ao longo do tempo (mes)
@@ -36,13 +50,17 @@ export async function dashboardRoutes(app: FastifyInstance) {
         monthlyStats[month].netRevenue += saleValue;
       }
 
+      monthlyStats[month].grossRevenue += saleValue;
       monthlyStats[month].netProfit += sale.calculatedProfit;
     });
 
     // Top selling products
     const productSales: Record<string, { name: string; category: string; quantity: number }> = {};
     const salesWithProduct = await prisma.sale.findMany({
-      where: { status: 'COMPLETED' },
+      where: { status: 'COMPLETED'
+        ,
+        ...dateFilter,
+       },
       include: { product: true }
     });
 
