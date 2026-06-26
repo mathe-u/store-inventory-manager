@@ -14,10 +14,24 @@ export async function dashboardRoutes(app: FastifyInstance) {
     const { days } = querySchema.parse(request.query);
 
     let dateFilter = {};
+    let previousDateFilter = {}
+
     if (days) {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
       dateFilter = { createdAt: { gte: startDate } };
+
+      const previousStartDate = new Date(startDate);
+      previousStartDate.setDate(previousStartDate.getDate() - days);
+
+      previousDateFilter = {
+        createAt: {
+          gte: previousStartDate,
+          lt: startDate
+        }
+      }
+
+
     }
 
     const sales = await prisma.sale.findMany({
@@ -25,21 +39,34 @@ export async function dashboardRoutes(app: FastifyInstance) {
       orderBy: { createdAt: 'desc' },
     });
 
+    const previousSales = days ? await prisma.sale.findMany(
+      {
+        where: previousDateFilter
+      }
+    ) : [];
+
     const grossRevenue = sales.reduce((acc, sale) => acc + (sale.finalPrice * sale.quantity), 0 as number);
-
-    const grossRevenueDelta = 0.05;
-
     const netRevenue = sales.filter(sale => sale.status === 'COMPLETED').reduce((acc, sale) => acc + (sale.finalPrice * sale.quantity), 0);
 
     const grossProfit = 0;
 
     const netProfit = sales.reduce((acc, sale) => acc + sale.calculatedProfit, 0 as number);
-
-    const netProfitDelta = 0.03;
-
     const totalOrders = sales.length;
 
-    const totalOrdersDelta = 0.04;
+    const previousGrossRevenue = previousSales.reduce((acc, sale) => acc + (sale.finalPrice * sale.quantity), 0);
+    const previousNetProfit = previousSales.reduce((acc, sale) => acc + sale.calculatedProfit, 0);
+    const previousTotalOrders = previousSales.length;
+
+    const calculateDelta = (current: number, previous: number) => {
+      if (!days ) return 0;
+      if (previous > 0) return (current - previous) / previous;
+      if (current > 0) return 1;
+      return 0;
+    }
+
+    const grossRevenueDelta = calculateDelta(grossRevenue, previousGrossRevenue);
+    const netProfitDelta = calculateDelta(netProfit, previousNetProfit);
+    const totalOrdersDelta = calculateDelta(totalOrders, previousTotalOrders);
 
     // Group by month
     // grafico de barras duplas (faturamento bruto, custos) ao longo do tempo (mes)
