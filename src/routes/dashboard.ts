@@ -43,22 +43,16 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     // Group by month
     // grafico de barras duplas (faturamento bruto, custos) ao longo do tempo (mes)
-    const monthlyStats: Record<string, { grossRevenue: number; netRevenue: number; netProfit: number }> = {};
+    const monthlyStats: Record<string, { grossRevenue: number; costs: number }> = {};
 
     sales.forEach((sale) => {
-      const month = sale.createdAt.toISOString().slice(0, 7); // YYYY-MM
-      if (!monthlyStats[month]) {
-        monthlyStats[month] = { grossRevenue: 0, netRevenue: 0, netProfit: 0 };
+      const date = sale.createdAt.toISOString().slice(0, 7); // YYYY-MM
+      if (!monthlyStats[date]) {
+        monthlyStats[date] = { grossRevenue: 0, costs: 0 };
       }
 
-      const saleValue = sale.finalPrice * sale.quantity;
-
-      if (sale.status == 'COMPLETED') {
-        monthlyStats[month].netRevenue += saleValue;
-      }
-
-      monthlyStats[month].grossRevenue += saleValue;
-      monthlyStats[month].netProfit += sale.calculatedProfit;
+      monthlyStats[date].grossRevenue += sale.finalPrice * sale.quantity;
+      monthlyStats[date].costs += 2 * sale.quantity;
     });
 
     // Top selling products
@@ -68,17 +62,12 @@ export async function dashboardRoutes(app: FastifyInstance) {
         ,
         ...dateFilter,
        },
-      include: { product: true }
+      include: { product: { include: { category: true } } }
     });
 
     for (const sale of salesWithProduct) {
       const id = sale.productId;
-      const categoryId = sale.product.categoryId ;
-      let category: Category | null = null;
-
-      if (categoryId) {
-        category = await prisma.category.findUnique({ where: { id: categoryId } });
-      }
+      const category = sale.product.category;
 
       if (!productSales[id]) {
         productSales[id] = { productId: sale.productId, name: sale.product.name, category: category?.name ?? null, quantity: 0 };
@@ -99,7 +88,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
       netProfitDelta,
       totalOrders,
       totalOrdersDelta,
-      monthlyStats: Object.entries(monthlyStats).map(([month, data]) => ({ month, ...data })),
+      monthlyStats: Object.entries(monthlyStats).map(([date, data]) => ({ date, ...data })),
       topSelling,
     };
   });
