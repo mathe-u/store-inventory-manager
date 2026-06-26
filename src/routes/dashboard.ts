@@ -1,6 +1,7 @@
 import { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
+import type { Category } from '../generated/prisma/index.js';
 
 export async function dashboardRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
@@ -26,13 +27,19 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     const grossRevenue = sales.reduce((acc, sale) => acc + (sale.finalPrice * sale.quantity), 0 as number);
 
+    const grossRevenueDelta = 0.05;
+
     const netRevenue = sales.filter(sale => sale.status === 'COMPLETED').reduce((acc, sale) => acc + (sale.finalPrice * sale.quantity), 0);
 
     const grossProfit = 0;
 
     const netProfit = sales.reduce((acc, sale) => acc + sale.calculatedProfit, 0 as number);
 
+    const netProfitDelta = 0.03;
+
     const totalOrders = sales.length;
+
+    const totalOrdersDelta = 0.04;
 
     // Group by month
     // grafico de barras duplas (faturamento bruto, custos) ao longo do tempo (mes)
@@ -55,7 +62,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
     });
 
     // Top selling products
-    const productSales: Record<string, { name: string; category: string; quantity: number }> = {};
+    const productSales: Record<string, { productId: string; name: string; category: string | null; quantity: number }> = {};
     const salesWithProduct = await prisma.sale.findMany({
       where: { status: 'COMPLETED'
         ,
@@ -64,13 +71,20 @@ export async function dashboardRoutes(app: FastifyInstance) {
       include: { product: true }
     });
 
-    salesWithProduct.forEach((sale) => {
+    for (const sale of salesWithProduct) {
       const id = sale.productId;
+      const categoryId = sale.product.categoryId ;
+      let category: Category | null = null;
+
+      if (categoryId) {
+        category = await prisma.category.findUnique({ where: { id: categoryId } });
+      }
+
       if (!productSales[id]) {
-        productSales[id] = { name: sale.product.name, category: '', quantity: 0 };
+        productSales[id] = { productId: sale.productId, name: sale.product.name, category: category?.name ?? null, quantity: 0 };
       }
       productSales[id].quantity += sale.quantity;
-    });
+    }
 
     const topSelling = Object.values(productSales)
       .sort((a, b) => b.quantity - a.quantity)
@@ -78,10 +92,13 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     return {
       grossRevenue,
+      grossRevenueDelta,
       netRevenue,
       grossProfit,
       netProfit,
+      netProfitDelta,
       totalOrders,
+      totalOrdersDelta,
       monthlyStats: Object.entries(monthlyStats).map(([month, data]) => ({ month, ...data })),
       topSelling,
     };
