@@ -1,7 +1,7 @@
 import { type FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import type { Category } from '../generated/prisma/index.js';
+// import type { Category } from '../generated/prisma/index.js';
 
 export async function dashboardRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
@@ -15,9 +15,9 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     let dateFilter = {};
     if (days) {
-     const startDate = new Date();
-     startDate.setDate(startDate.getDate() - days);
-     dateFilter = { createdAt: { gte: startDate } };
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      dateFilter = { createdAt: { gte: startDate } };
     }
 
     const sales = await prisma.sale.findMany({
@@ -61,7 +61,7 @@ export async function dashboardRoutes(app: FastifyInstance) {
       where: { status: 'COMPLETED'
         ,
         ...dateFilter,
-       },
+        },
       include: { product: { include: { category: true } } }
     });
 
@@ -96,10 +96,20 @@ export async function dashboardRoutes(app: FastifyInstance) {
   app.get('/price-evolution/:productId', async (request) => {
     // TODO: tratar dias que nao houver nunhuma venda
     const paramsSchema = z.object({ productId: z.uuid() });
+    const querySchema = z.object({ days: z.coerce.number().positive().optional() });
+
     const { productId } = paramsSchema.parse(request.params);
+    const { days } = querySchema.parse(request.query);
+
+    let dateFilter = {};
+  if (days) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    dateFilter = { createdAt: { gte: startDate } };
+  }
 
     const sales = await prisma.sale.findMany({
-      where: { productId, status: 'COMPLETED' },
+      where: { productId, status: 'COMPLETED', ...dateFilter },
       orderBy: { createdAt: 'asc' },
       select: { createdAt: true, finalPrice: true },
     });
