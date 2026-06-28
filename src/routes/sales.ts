@@ -8,10 +8,10 @@ export async function saleRoutes(app: FastifyInstance) {
 
   app.post('/', async (request, reply) => {
     const saleSchema = z.object({
-      productId: z.string().uuid(),
+      productId: z.uuid(),
       quantity: z.number().int().min(1),
       finalPrice: z.number(), // Price sold in Marketplace
-      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED']).default('COMPLETED'),
+      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).default('COMPLETED'),
     });
 
     const { productId, quantity, finalPrice, status } = saleSchema.parse(request.body);
