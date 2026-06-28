@@ -69,6 +69,7 @@ enum SaleStatus {
   COMPLETED
   LOSS
   RETURNED
+  PENDING
 }
 
 model Sale {

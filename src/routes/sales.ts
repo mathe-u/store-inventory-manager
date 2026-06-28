@@ -11,7 +11,7 @@ export async function saleRoutes(app: FastifyInstance) {
       productId: z.uuid(),
       quantity: z.number().int().min(1),
       finalPrice: z.number(), // Price sold in Marketplace
-      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED']).default('COMPLETED'),
+      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).default('PENDING'),
     });
 
     const { productId, quantity, finalPrice, status } = saleSchema.parse(request.body);
@@ -128,7 +128,7 @@ export async function saleRoutes(app: FastifyInstance) {
     const updateSchema = z.object({
       quantity: z.number().int().min(1).optional(),
       finalPrice: z.number().optional(),
-      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED']).optional(),
+      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).optional(),
     });
 
     const body = updateSchema.parse(request.body);
