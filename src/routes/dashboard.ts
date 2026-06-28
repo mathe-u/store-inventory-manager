@@ -25,13 +25,11 @@ export async function dashboardRoutes(app: FastifyInstance) {
       previousStartDate.setDate(previousStartDate.getDate() - days);
 
       previousDateFilter = {
-        createAt: {
+        createdAt: {
           gte: previousStartDate,
           lt: startDate
         }
       }
-
-
     }
 
     const sales = await prisma.sale.findMany({
