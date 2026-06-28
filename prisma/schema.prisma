@@ -72,11 +72,21 @@ enum SaleStatus {
   PENDING
 }
 
+model PaymentMethod {
+  id               String     @id @default(uuid())
+  name             String
+  icon             String?
+  sales            Sale[]
+}
+
 model Sale {
   id               String     @id @default(uuid())
   productId        String
   product          Product    @relation(fields: [productId], references: [id])
   quantity         Int
+  customerName     String?
+  paymentMethodId  String
+  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
   finalPrice       Float
   calculatedProfit Float      // Profit calculated at the time of sale
   status           SaleStatus @default(COMPLETED)
