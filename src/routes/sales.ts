@@ -11,7 +11,7 @@ export async function saleRoutes(app: FastifyInstance) {
       productId: z.uuid(),
       quantity: z.number().int().min(1),
       finalPrice: z.number(), // Price sold in Marketplace
-      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).default('COMPLETED'),
+      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED']).default('COMPLETED'),
     });
 
     const { productId, quantity, finalPrice, status } = saleSchema.parse(request.body);
@@ -48,18 +48,12 @@ export async function saleRoutes(app: FastifyInstance) {
           hourlyRate,
         });
 
-        let saleProfit = 0;
-        let actualFinalPrice = finalPrice;
-
-        if (status === 'LOSS') {
-          actualFinalPrice = 0;
-          saleProfit = -pricing.totalBaseCost * quantity;
-        } else if (status === 'RETURNED') {
-          actualFinalPrice = 0;
-          saleProfit = 0;
-        } else {
-          saleProfit = pricing.marginAtPrice(finalPrice).netProfit * quantity;
-        }
+        const actualFinalPrice = (status === 'LOSS' || status === 'RETURNED') ? 0 : finalPrice;
+        const saleProfit = status === 'LOSS'
+          ? -pricing.totalBaseCost * quantity
+          : status === 'RETURNED'
+          ? 0
+          : pricing.marginAtPrice(finalPrice).netProfit * quantity;
 
         // Create sale record
         const sale = await tx.sale.create({
@@ -73,15 +67,14 @@ export async function saleRoutes(app: FastifyInstance) {
         });
 
         // Decrement stock only if status is COMPLETED or LOSS
-        let updatedProduct = product;
         if (status === 'COMPLETED' || status === 'LOSS') {
-          updatedProduct = await tx.product.update({
+          await tx.product.update({
             where: { id: productId },
             data: { stockQuantity: { decrement: quantity } },
           });
         }
 
-        // Recalculate lossIndex based on sales: lossIndex = totalLost / (totalSold + totalLost) * 100
+        // Recalculate lossIndex based on sales: lossIndex = totalLost / (totalSold + totalLost)
         const productSales = await tx.sale.findMany({
           where: { productId },
           select: { status: true, quantity: true },
@@ -96,9 +89,9 @@ export async function saleRoutes(app: FastifyInstance) {
           .reduce((acc, s) => acc + s.quantity, 0);
 
         const totalItems = totalSold + totalLost;
-        const lossIndex = totalItems > 0 ? (totalLost / totalItems) * 100 : 0;
+        const lossIndex = totalItems > 0 ? (totalLost / totalItems) : 0;
 
-        updatedProduct = await tx.product.update({
+        const updatedProduct = await tx.product.update({
           where: { id: productId },
           data: { lossIndex },
         });
@@ -107,12 +100,14 @@ export async function saleRoutes(app: FastifyInstance) {
       });
 
       return result;
-    } catch (error: any) {
-      if (error.message === 'Product not found') {
-        return reply.status(404).send({ message: error.message });
-      }
-      if (error.message === 'Insufficient stock') {
-        return reply.status(400).send({ message: error.message });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Product not found') {
+          return reply.status(404).send({ message: error.message });
+        }
+        if (error.message === 'Insufficient stock') {
+          return reply.status(400).send({ message: error.message });
+        }
       }
       throw error;
     }
@@ -177,31 +172,27 @@ export async function saleRoutes(app: FastifyInstance) {
 
         const settings = await tx.globalSettings.findUnique({ where: { id: 'default' } });
         const hourlyRate = settings?.hourlyRate ?? 0;
+        const investmentRate = settings?.investmentRate ?? 0;
 
         // Calculate pricing based on current product costs
         const pricing = PricingService.calculate({
-          itemPrice: product.acquisitionCost,
+          acquisitionCost: product.acquisitionCost,
           shippingCost: product.shippingCost,
           taxRate: product.taxRate,
           directCosts: product.directCosts,
+          investmentRate,
           timeSpent: product.timeSpent,
           lossIndex: product.lossIndex,
           desiredMargin: product.desiredMargin,
           hourlyRate,
         });
 
-        let saleProfit = 0;
-        let actualFinalPrice = newFinalPrice;
-
-        if (newStatus === 'LOSS') {
-          actualFinalPrice = 0;
-          saleProfit = -pricing.totalBaseCost * newQuantity;
-        } else if (newStatus === 'RETURNED') {
-          actualFinalPrice = 0;
-          saleProfit = 0;
-        } else {
-          saleProfit = pricing.marginAtPrice(newFinalPrice).netProfit * newQuantity;
-        }
+        const actualFinalPrice = (newStatus === 'LOSS' || newStatus === 'RETURNED') ? 0 : newFinalPrice;
+        const saleProfit = newStatus === 'LOSS'
+          ? -pricing.totalBaseCost * newQuantity
+          : newStatus === 'RETURNED'
+          ? 0
+          : pricing.marginAtPrice(newFinalPrice).netProfit * newQuantity;
 
         // Update the sale
         const updatedSale = await tx.sale.update({
@@ -234,10 +225,8 @@ export async function saleRoutes(app: FastifyInstance) {
           .filter((s) => s.status === 'COMPLETED')
           .reduce((acc, s) => acc + s.quantity, 0);
 
-        const currentStock = product.stockQuantity;
-
-        const totalItems = totalSold + totalLost + currentStock;
-        const lossIndex = totalItems > 0 ? (totalLost / totalItems) * 100 : 0;
+        const totalItems = totalSold + totalLost;
+        const lossIndex = totalItems > 0 ? (totalLost / totalItems) : 0;
 
         await tx.product.update({
           where: { id: oldSale.productId },
@@ -248,15 +237,17 @@ export async function saleRoutes(app: FastifyInstance) {
       });
 
       return result;
-    } catch (error: any) {
-      if (error.message === 'Sale not found') {
-        return reply.status(404).send({ message: error.message });
-      }
-      if (error.message === 'Product not found') {
-        return reply.status(404).send({ message: error.message });
-      }
-      if (error.message === 'Insufficient stock') {
-        return reply.status(400).send({ message: error.message });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Sale not found') {
+          return reply.status(404).send({ message: error.message });
+        }
+        if (error.message === 'Product not found') {
+          return reply.status(404).send({ message: error.message });
+        }
+        if (error.message === 'Insufficient stock') {
+          return reply.status(400).send({ message: error.message });
+        }
       }
       throw error;
     }
@@ -304,7 +295,7 @@ export async function saleRoutes(app: FastifyInstance) {
           .reduce((acc, s) => acc + s.quantity, 0);
 
         const totalItems = totalSold + totalLost;
-        const lossIndex = totalItems > 0 ? (totalLost / totalItems) * 100 : 0;
+        const lossIndex = totalItems > 0 ? (totalLost / totalItems) : 0;
 
         await tx.product.update({
           where: { id: sale.productId },
@@ -313,9 +304,11 @@ export async function saleRoutes(app: FastifyInstance) {
       });
 
       return reply.status(204).send();
-    } catch (error: any) {
-      if (error.message === 'Sale not found') {
-        return reply.status(404).send({ message: error.message });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'Sale not found') {
+          return reply.status(404).send({ message: error.message });
+        }
       }
       throw error;
     }
