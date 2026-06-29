@@ -34,8 +34,43 @@ export async function dashboardRoutes(app: FastifyInstance) {
 
     const sales = await prisma.sale.findMany({
       where: dateFilter,
+      include: { product: true },
       orderBy: { createdAt: 'desc' },
     });
+
+    const settings = await prisma.globalSettings.findUnique({ where: { id: 'default' } });
+    const hourlyRate = settings?.hourlyRate ?? 0;
+    const investmentRate = settings?.investmentRate ?? 0;
+    
+    let totalAcquisitionAndDirectCosts = 0;
+    let totalLaborAndProvisions = 0;
+    let totalShippingAndTaxes = 0;
+    let totalNetProfitCompleted = 0;
+    let totalRevenueCompleted = 0;
+
+    const completedSales = sales.filter(sale => sale.status === 'COMPLETED');
+
+    completedSales.forEach((sale) => {
+      const product = sale.product;
+      const quatity = sale.quantity;
+
+      const discountValue = 0;
+      const customsValue = product.acquisitionCost - discountValue + product.shippingCost;
+      const baseICMS = product.taxRate < 1 ? customsValue / (1 - product.taxRate) : customsValue;
+      const icmsTax = product.taxRate < 1 ? baseICMS * product.taxRate : 0;
+      const sellerWage = product.timeSpent * hourlyRate;
+      
+      totalAcquisitionAndDirectCosts += (product.acquisitionCost + product.directCosts) * quatity;
+      totalLaborAndProvisions += (sellerWage + (sale.finalPrice * investmentRate) + (sale.finalPrice * product.lossIndex)) * quatity;
+      totalShippingAndTaxes += (product.shippingCost + icmsTax) * quatity;
+      totalNetProfitCompleted += sale.calculatedProfit;
+      totalRevenueCompleted += sale.finalPrice * quatity;
+    });
+
+    const hasRevenue = totalRevenueCompleted > 0;
+    const netProfitPercent = hasRevenue ? (totalNetProfitCompleted / totalRevenueCompleted) : 0;
+    const costsPercent = hasRevenue ? ((totalAcquisitionAndDirectCosts + totalLaborAndProvisions) / totalRevenueCompleted) : 0;
+    const deliveryTaxPercent = hasRevenue ? (totalShippingAndTaxes / totalRevenueCompleted) : 0;
 
     const previousSales = days ? await prisma.sale.findMany(
       {
@@ -114,6 +149,11 @@ export async function dashboardRoutes(app: FastifyInstance) {
       totalOrders,
       totalOrdersDelta,
       monthlyStats: Object.entries(monthlyStats).map(([date, data]) => ({ date, ...data })),
+      marginBreakdown: {
+        netProfit: Number(netProfitPercent.toFixed(1)),
+        costs: Number(costsPercent.toFixed(1)),
+        deliveryTax: Number(deliveryTaxPercent.toFixed(1)),
+      },
       topSelling,
     };
   });
