@@ -16,7 +16,11 @@ const port = 3333
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
 
-app.register(cors, { origin: '*' });
+app.register(cors, {
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+});
 
 app.register(jwt, {
   secret: process.env.JWT_SECRET || 'super-secret-key-fallback',
