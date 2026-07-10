@@ -7,8 +7,25 @@ export async function productRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
 
   // List all products (includes category)
-  app.get('/', async () => {
+  app.get('/', async (request) => {
+    const querySchema = z.object({
+      search: z.string().optional(),
+    });
+    const { search } = querySchema.parse(request.query);
+
+    const filter = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            // Busca na tabela relacionada 'category' pelo campo 'name'
+            { category: { name: { contains: search, mode: 'insensitive' } } },
+          ],
+        }
+      : {};
+    
+
     const products = await prisma.product.findMany({
+      where: filter,
       orderBy: { createdAt: 'desc' },
       include: { category: true },
     });
