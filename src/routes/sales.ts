@@ -3,8 +3,27 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { PricingService } from '../services/pricingService.js';
 
+async function ensurePaymentMethods() {
+  const defaults = [
+    { id: 'cash', name: 'Dinheiro', icon: 'payments' },
+    { id: 'pix', name: 'Pix', icon: 'send_money' },
+    { id: 'credit_card', name: 'Cartão de crédito', icon: 'account_balance_wallet' },
+    { id: 'other', name: 'Outros', icon: 'more_horiz' },
+  ];
+
+  for (const method of defaults) {
+    await prisma.paymentMethod.upsert({
+      where: { id: method.id },
+      update: {},
+      create: method,
+    });
+  }
+}
+
 export async function saleRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
+
+  await ensurePaymentMethods();
 
   app.post('/', async (request, reply) => {
     const saleSchema = z.object({
@@ -12,9 +31,11 @@ export async function saleRoutes(app: FastifyInstance) {
       quantity: z.number().int().min(1),
       finalPrice: z.number(), // Price sold in Marketplace
       status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).default('PENDING'),
+      customerName: z.string().optional().nullable(),
+      paymentMethodId: z.string().default('cash'),
     });
 
-    const { productId, quantity, finalPrice, status } = saleSchema.parse(request.body);
+    const { productId, quantity, finalPrice, status, customerName, paymentMethodId } = saleSchema.parse(request.body);
 
     try {
       const result = await prisma.$transaction(async (tx) => {
@@ -63,6 +84,8 @@ export async function saleRoutes(app: FastifyInstance) {
             finalPrice: actualFinalPrice,
             calculatedProfit: saleProfit,
             status,
+            customerName: customerName || null,
+            paymentMethodId: paymentMethodId,
           },
         });
 
@@ -115,7 +138,14 @@ export async function saleRoutes(app: FastifyInstance) {
 
   app.get('/', async () => {
     const sales = await prisma.sale.findMany({
-      include: { product: true },
+      include: {
+        product: {
+          include: {
+            category: true,
+          },
+        },
+        paymentMethod: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
     return sales;
@@ -129,6 +159,8 @@ export async function saleRoutes(app: FastifyInstance) {
       quantity: z.number().int().min(1).optional(),
       finalPrice: z.number().optional(),
       status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).optional(),
+      customerName: z.string().optional().nullable(),
+      paymentMethodId: z.string().optional(),
     });
 
     const body = updateSchema.parse(request.body);
@@ -202,6 +234,8 @@ export async function saleRoutes(app: FastifyInstance) {
             finalPrice: actualFinalPrice,
             calculatedProfit: saleProfit,
             status: newStatus,
+            customerName: body.customerName !== undefined ? body.customerName : oldSale.customerName,
+            paymentMethodId: body.paymentMethodId !== undefined ? body.paymentMethodId : oldSale.paymentMethodId,
           },
         });
 

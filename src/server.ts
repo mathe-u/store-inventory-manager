@@ -9,6 +9,7 @@ import { saleRoutes } from './routes/sales.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { categoryRoutes } from './routes/categories.js';
 import { pricingRoutes } from './routes/pricing.js';
+import { paymentRoutes } from './routes/payments.js';
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -57,6 +58,7 @@ app.register(saleRoutes, { prefix: '/api/v1/sales' });
 app.register(dashboardRoutes, { prefix: '/api/v1/dashboard' });
 app.register(categoryRoutes, { prefix: '/api/v1/categories' });
 app.register(pricingRoutes, { prefix: '/api/v1/pricing' });
+app.register(paymentRoutes, { prefix: '/api/v1/payments' });
 
 app.listen({ port: port, host: '0.0.0.0' })
   .catch(error => {
