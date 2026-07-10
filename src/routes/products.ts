@@ -16,9 +16,9 @@ export async function productRoutes(app: FastifyInstance) {
     const filter = search
       ? {
           OR: [
-            { name: { contains: search, mode: 'insensitive' } },
+            { name: { contains: search } },
             // Busca na tabela relacionada 'category' pelo campo 'name'
-            { category: { name: { contains: search, mode: 'insensitive' } } },
+            { category: { name: { contains: search } } },
           ],
         }
       : {};
