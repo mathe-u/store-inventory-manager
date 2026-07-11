@@ -6,8 +6,15 @@ export async function categoryRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
 
   // List all categories
-  app.get('/', async () => {
+  app.get('/', async (request) => {
+    const { search } = z.object({ search: z.string().optional() }).parse(request.query);
     return prisma.category.findMany({
+      where: search ? {
+        OR: [
+          { name: { contains: search } },
+          { description: {contains: search} },
+        ]
+      } : {},
       orderBy: { name: 'asc' },
       include: { _count: { select: { products: true } } },
     });
