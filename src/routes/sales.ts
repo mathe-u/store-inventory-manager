@@ -3,33 +3,14 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { PricingService } from '../services/pricingService.js';
 
-async function ensurePaymentMethods() {
-  const defaults = [
-    { id: 'cash', name: 'Dinheiro', icon: 'payments' },
-    { id: 'pix', name: 'Pix', icon: 'send_money' },
-    { id: 'credit_card', name: 'Cartão de crédito', icon: 'account_balance_wallet' },
-    { id: 'other', name: 'Outros', icon: 'more_horiz' },
-  ];
-
-  for (const method of defaults) {
-    await prisma.paymentMethod.upsert({
-      where: { id: method.id },
-      update: {},
-      create: method,
-    });
-  }
-}
-
 export async function saleRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
-
-  await ensurePaymentMethods();
 
   app.post('/', async (request, reply) => {
     const saleSchema = z.object({
       productId: z.uuid(),
       quantity: z.number().int().min(1),
-      finalPrice: z.number(), // Price sold in Marketplace
+      finalPrice: z.number(),
       status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).default('PENDING'),
       customerName: z.string().optional().nullable(),
       paymentMethodId: z.string().default('cash'),
@@ -136,8 +117,21 @@ export async function saleRoutes(app: FastifyInstance) {
     }
   });
 
-  app.get('/', async () => {
+  app.get('/', async (request) => {
+    const { productName, status } = z.object({
+      productName: z.string().optional(),
+      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).optional(),
+    }).parse(request.query);
+
     const sales = await prisma.sale.findMany({
+      where: {
+        ...(status ? { status } : {}),
+        ...(productName ? {
+          product: {
+            name: {contains: productName }
+          }
+        } : {}),
+      },
       include: {
         product: {
           include: {
