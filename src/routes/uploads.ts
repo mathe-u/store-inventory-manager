@@ -14,7 +14,7 @@ export async function uploadRoutes(app: FastifyInstance) {
     limits: {fileSize: 2 * 1024 * 1024}
   });
 
-  app.post('/products/upload', async (request, reply) => {
+  app.post('/products', async (request, reply) => {
     const data = await request.file();
     
     if (!data) {
@@ -50,7 +50,7 @@ export async function uploadRoutes(app: FastifyInstance) {
 
     } catch (err) {
         console.error(err);
-        return reply.status(500).send({ message: 'File upload failed' });
+        return reply.status(500).send({ message: `File upload failed: ${err}` });
     }
   });
 

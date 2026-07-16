@@ -10,6 +10,7 @@ import { dashboardRoutes } from './routes/dashboard.js';
 import { categoryRoutes } from './routes/categories.js';
 import { pricingRoutes } from './routes/pricing.js';
 import { paymentRoutes } from './routes/payments.js';
+import { uploadRoutes } from './routes/uploads.js';
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -53,6 +54,7 @@ app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply
 
 app.register(authRoutes, { prefix: '/api/v1/auth' });
 app.register(productRoutes, { prefix: '/api/v1/products' });
+app.register(uploadRoutes, { prefix: '/api/v1/upload'});
 app.register(settingsRoutes, { prefix: '/api/v1/settings' });
 app.register(saleRoutes, { prefix: '/api/v1/sales' });
 app.register(dashboardRoutes, { prefix: '/api/v1/dashboard' });
