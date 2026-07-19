@@ -110,7 +110,7 @@ export async function productRoutes(app: FastifyInstance) {
 
     const productSchema = z.object({
       name: z.string().optional(),
-      imageUrl: z.string().optional(),
+      imageUrl: z.string().nullable().optional(),
       stockQuantity: z.number().int().optional(),
       minStockAlert: z.number().int().optional(),
       metadata: z.record(z.string(), z.any()).optional(),

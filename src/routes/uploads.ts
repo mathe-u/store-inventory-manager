@@ -31,7 +31,7 @@ export async function uploadRoutes(app: FastifyInstance) {
         const fileName = `${randomUUID()}${fileExtension}`;
         const filePath = `products/${fileName}`;
 
-        const { data: uploadResult, error: uploadError } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
             .from(supabaseBucket)
             .upload(filePath, fileBuffer, {
                 contentType: data.mimetype,
