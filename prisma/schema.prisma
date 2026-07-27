@@ -12,17 +12,13 @@ datasource db {
   provider = "sqlite"
 }
 
-enum Role {
-  ADMIN
-  SELLER
-}
 
 model User {
   id       String @id @default(uuid())
   name     String
   email    String @unique
   password String
-  role     Role @default(SELLER)
+  role     String @default("SELLER")
 }
 
 model Category {
@@ -71,12 +67,6 @@ model Product {
   updatedAt       DateTime  @updatedAt
 }
 
-enum SaleStatus {
-  COMPLETED
-  LOSS
-  RETURNED
-  PENDING
-}
 
 model PaymentMethod {
   id               String     @id @default(uuid())
@@ -95,7 +85,7 @@ model Sale {
   paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id])
   finalPrice       Float
   calculatedProfit Float      // Profit calculated at the time of sale
-  status           SaleStatus @default(COMPLETED)
+  status           String @default("COMPLETED")
   createdAt        DateTime   @default(now())
 }
 
