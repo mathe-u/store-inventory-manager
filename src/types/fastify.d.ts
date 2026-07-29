@@ -1,5 +1,5 @@
 import 'fastify';
-import { type FastifyRequest, type FastifyReply, type FastifyInstance } from 'fastify';
+import { type FastifyRequest, type FastifyReply } from 'fastify';
 
 declare module 'fastify' {
     export interface FastifyInstance {
