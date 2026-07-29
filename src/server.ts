@@ -3,6 +3,7 @@ import jwt from '@fastify/jwt';
 import cors from '@fastify/cors';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { authRoutes } from './routes/auth.js';
+import { userRoutes } from './routes/users.js';
 import { productRoutes } from './routes/products.js';
 import { settingsRoutes } from './routes/settings.js';
 import { saleRoutes } from './routes/sales.js';
@@ -53,8 +54,9 @@ app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply
 // })
 
 app.register(authRoutes, { prefix: '/api/v1/auth' });
+app.register(userRoutes, { prefix: '/api/v1/users' });
 app.register(productRoutes, { prefix: '/api/v1/products' });
-app.register(uploadRoutes, { prefix: '/api/v1/upload'});
+app.register(uploadRoutes, { prefix: '/api/v1/upload' });
 app.register(settingsRoutes, { prefix: '/api/v1/settings' });
 app.register(saleRoutes, { prefix: '/api/v1/sales' });
 app.register(dashboardRoutes, { prefix: '/api/v1/dashboard' });
