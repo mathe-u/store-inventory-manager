@@ -1,6 +1,7 @@
 import fastify, { type FastifyRequest, type FastifyReply } from 'fastify';
 import jwt from '@fastify/jwt';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
@@ -12,6 +13,7 @@ import { categoryRoutes } from './routes/categories.js';
 import { pricingRoutes } from './routes/pricing.js';
 import { paymentRoutes } from './routes/payments.js';
 import { uploadRoutes } from './routes/uploads.js';
+import { prisma } from './lib/prisma.js';
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -26,6 +28,11 @@ app.register(cors, {
   allowedHeaders: ['Content-Type', 'Authorization']
 });
 
+app.register(rateLimit, {
+  max: 100,
+  timeWindow: '1 minute',
+});
+
 app.register(jwt, {
   secret: process.env.JWT_SECRET || 'super-secret-key-fallback',
 });
@@ -34,8 +41,20 @@ app.register(jwt, {
 app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
   try {
     await request.jwtVerify();
+
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+      return reply.status(400).send({ message: 'Missing token' });
+    }
+    const token = authHeader.replace('Bearer ', '');
+
+    const isRevoked = await prisma.revokedToken.findUnique({ where: { token } });
+    if (isRevoked) {
+      return reply.status(401).send({ message: 'Token Revoked' });
+    }
+
   } catch (err) {
-    reply.send(err);
+    return reply.status(401).send({ message: 'Unauthorized', error: err });
   }
 });
 

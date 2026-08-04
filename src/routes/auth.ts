@@ -33,7 +33,14 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(201).send({ id: user.id, name: user.name, email: user.email, role: user.role });
   });
 
-  app.post('/login', async (request, reply) => {
+  app.post('/login', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '15m',
+      }
+    }
+  }, async (request, reply) => {
     const loginSchema = z.object({
       email: z.email(),
       password: z.string(),
@@ -51,8 +58,25 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(401).send({ message: 'Invalid credentials' });
     }
 
-    const token = app.jwt.sign({ sub: user.id, name: user.name, role: user.role });
+    const token = app.jwt.sign({ sub: user.id, name: user.name, role: user.role }, { expiresIn: '2h' });
 
     return reply.send({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  });
+
+  // Rota de logout para invalidar o token atual
+  app.post('/logout', { preHandler: app.authenticate }, async (request, reply) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader) {
+      return reply.status(400).send({ message: 'Missing Authorization header' });
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // Salva o token na blacklist
+    await prisma.revokedToken.create({
+      data: { token }
+    });
+
+    return reply.send({ message: 'Logged out successfully' });
   });
 }

@@ -101,3 +101,7 @@ model Sale {
   createdAt        DateTime   @default(now())
 }
 
+model RevokedToken {
+  token     String   @id
+  createdAt DateTime @default(now())
+}
