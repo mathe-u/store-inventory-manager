@@ -1,4 +1,5 @@
 import { type FastifyInstance } from 'fastify';
+import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 
@@ -9,10 +10,29 @@ const DEFAULT_PAYMENT_METHODS = [
     { id: 'other', name: 'Outros', icon: 'more_horiz' },
 ];
 
-export async function paymentRoutes(app: FastifyInstance) {
+const paymentMethodSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  icon: z.string().nullable(),
+});
+
+const errorSchema = z.object({ message: z.string() });
+const idParamSchema = z.object({ id: z.string() });
+
+export async function paymentRoutes(fastify: FastifyInstance) {
+    const app = fastify.withTypeProvider<ZodTypeProvider>();
     app.addHook('preHandler', app.authenticate);
 
-    app.get('/seed', async () => {
+    app.get('/seed', {
+      schema: {
+        tags: ['Payments'],
+        summary: 'Popular métodos de pagamento padrão',
+        security: [{ BearerAuth: [] }],
+        response: {
+          200: z.object({ message: z.string() }),
+        },
+      },
+    }, async () => {
         for (const method of DEFAULT_PAYMENT_METHODS) {
             await prisma.paymentMethod.upsert({
                 where: { id: method.id },
@@ -21,23 +41,40 @@ export async function paymentRoutes(app: FastifyInstance) {
             });
         }
         return { message: 'Default payment methods seeded' };
-        });
-    
-    app.get('/', async () => {
+    });
+
+    app.get('/', {
+      schema: {
+        tags: ['Payments'],
+        summary: 'Listar métodos de pagamento',
+        security: [{ BearerAuth: [] }],
+        response: {
+          200: z.array(paymentMethodSchema),
+        },
+      },
+    }, async () => {
         return prisma.paymentMethod.findMany({
             orderBy: { name: 'asc' },
         });
     });
 
-    app.post('/', async (request, reply) => {
-        const schema = z.object({
-            id: z.string().optional(),
-            name: z.string().min(1),
-            icon: z.string().optional().nullable(),
-        });
-    
-        const data = schema.parse(request.body);
-    
+    app.post('/', {
+      schema: {
+        tags: ['Payments'],
+        summary: 'Criar método de pagamento',
+        security: [{ BearerAuth: [] }],
+        body: z.object({
+          id: z.string().optional(),
+          name: z.string().min(1),
+          icon: z.string().optional().nullable(),
+        }),
+        response: {
+          201: paymentMethodSchema,
+        },
+      },
+    }, async (request, reply) => {
+        const data = request.body;
+
         const method = await prisma.paymentMethod.create({
             data: {
                 id: data.id,
@@ -49,16 +86,24 @@ export async function paymentRoutes(app: FastifyInstance) {
         return reply.status(201).send(method);
     });
 
-    app.put('/:id', async (request, reply) => {
-        const paramsSchema = z.object({ id: z.string() });
-        const { id } = paramsSchema.parse(request.params);
-    
-        const bodySchema = z.object({
-            name: z.string().min(1).optional(),
-            icon: z.string().optional().nullable(),
-        });
-
-        const data = bodySchema.parse(request.body);
+    app.put('/:id', {
+      schema: {
+        tags: ['Payments'],
+        summary: 'Atualizar método de pagamento',
+        security: [{ BearerAuth: [] }],
+        params: idParamSchema,
+        body: z.object({
+          name: z.string().min(1).optional(),
+          icon: z.string().optional().nullable(),
+        }),
+        response: {
+          200: paymentMethodSchema,
+          404: errorSchema,
+        },
+      },
+    }, async (request, reply) => {
+        const { id } = request.params;
+        const data = request.body;
 
         try {
             const updated = await prisma.paymentMethod.update({
@@ -71,13 +116,23 @@ export async function paymentRoutes(app: FastifyInstance) {
         }
     });
 
-    app.delete('/:id', async (request, reply) => {
-        const paramsSchema = z.object({ id: z.string() });
-        const { id } = paramsSchema.parse(request.params);
+    app.delete('/:id', {
+      schema: {
+        tags: ['Payments'],
+        summary: 'Remover método de pagamento',
+        security: [{ BearerAuth: [] }],
+        params: idParamSchema,
+        response: {
+          204: z.null(),
+          404: errorSchema,
+        },
+      },
+    }, async (request, reply) => {
+        const { id } = request.params;
 
         try {
             await prisma.paymentMethod.delete({ where: { id } });
-            return reply.status(204).send();
+            return reply.status(204).send(null);
         } catch {
             return reply.status(404).send({ message: 'Payment method not found' });
         }

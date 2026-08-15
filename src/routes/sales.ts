@@ -1,22 +1,56 @@
 import { type FastifyInstance } from 'fastify';
+import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { PricingService } from '../services/pricingService.js';
 
-export async function saleRoutes(app: FastifyInstance) {
+const saleStatusEnum = z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']);
+
+const saleSchema = z.object({
+  id: z.string(),
+  productId: z.string(),
+  quantity: z.number(),
+  finalPrice: z.number(),
+  calculatedProfit: z.number(),
+  status: saleStatusEnum,
+  customerName: z.string().nullable(),
+  paymentMethodId: z.string(),
+  createdAt: z.date(),
+});
+
+const errorSchema = z.object({ message: z.string() });
+const idParamSchema = z.object({ id: z.string().uuid() });
+
+const createSaleBodySchema = z.object({
+  productId: z.uuid(),
+  quantity: z.number().int().min(1),
+  finalPrice: z.number(),
+  status: saleStatusEnum.default('PENDING'),
+  customerName: z.string().optional().nullable(),
+  paymentMethodId: z.string().default('cash'),
+});
+
+export async function saleRoutes(fastify: FastifyInstance) {
+  const app = fastify.withTypeProvider<ZodTypeProvider>();
   app.addHook('preHandler', app.authenticate);
 
-  app.post('/', async (request, reply) => {
-    const saleSchema = z.object({
-      productId: z.uuid(),
-      quantity: z.number().int().min(1),
-      finalPrice: z.number(),
-      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).default('PENDING'),
-      customerName: z.string().optional().nullable(),
-      paymentMethodId: z.string().default('cash'),
-    });
-
-    const { productId, quantity, finalPrice, status, customerName, paymentMethodId } = saleSchema.parse(request.body);
+  app.post('/', {
+    schema: {
+      tags: ['Sales'],
+      summary: 'Registrar nova venda',
+      security: [{ BearerAuth: [] }],
+      body: createSaleBodySchema,
+      response: {
+        200: z.object({
+          sale: saleSchema,
+          stockRemaining: z.number(),
+        }),
+        400: errorSchema,
+        404: errorSchema,
+      },
+    },
+  }, async (request, reply) => {
+    const { productId, quantity, finalPrice, status, customerName, paymentMethodId } = request.body;
 
     try {
       const result = await prisma.$transaction(async (tx) => {
@@ -117,11 +151,21 @@ export async function saleRoutes(app: FastifyInstance) {
     }
   });
 
-  app.get('/', async (request) => {
-    const { productName, status } = z.object({
-      productName: z.string().optional(),
-      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).optional(),
-    }).parse(request.query);
+  app.get('/', {
+    schema: {
+      tags: ['Sales'],
+      summary: 'Listar vendas',
+      security: [{ BearerAuth: [] }],
+      querystring: z.object({
+        productName: z.string().optional(),
+        status: saleStatusEnum.optional(),
+      }),
+      response: {
+        200: z.array(z.any()),
+      },
+    },
+  }, async (request) => {
+    const { productName, status } = request.query;
 
     const sales = await prisma.sale.findMany({
       where: {
@@ -145,19 +189,31 @@ export async function saleRoutes(app: FastifyInstance) {
     return sales;
   });
 
-  app.put('/:id', async (request, reply) => {
-    const paramsSchema = z.object({ id: z.string().uuid() });
-    const { id } = paramsSchema.parse(request.params);
-
-    const updateSchema = z.object({
-      quantity: z.number().int().min(1).optional(),
-      finalPrice: z.number().optional(),
-      status: z.enum(['COMPLETED', 'LOSS', 'RETURNED', 'PENDING']).optional(),
-      customerName: z.string().optional().nullable(),
-      paymentMethodId: z.string().optional(),
-    });
-
-    const body = updateSchema.parse(request.body);
+  app.put('/:id', {
+    schema: {
+      tags: ['Sales'],
+      summary: 'Atualizar venda',
+      security: [{ BearerAuth: [] }],
+      params: idParamSchema,
+      body: z.object({
+        quantity: z.number().int().min(1).optional(),
+        finalPrice: z.number().optional(),
+        status: saleStatusEnum.optional(),
+        customerName: z.string().optional().nullable(),
+        paymentMethodId: z.string().optional(),
+      }),
+      response: {
+        200: z.object({
+          sale: saleSchema,
+          stockRemaining: z.number(),
+        }),
+        400: errorSchema,
+        404: errorSchema,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
+    const body = request.body;
 
     try {
       const result = await prisma.$transaction(async (tx) => {
@@ -281,9 +337,19 @@ export async function saleRoutes(app: FastifyInstance) {
     }
   });
 
-  app.delete('/:id', async (request, reply) => {
-    const paramsSchema = z.object({ id: z.string().uuid() });
-    const { id } = paramsSchema.parse(request.params);
+  app.delete('/:id', {
+    schema: {
+      tags: ['Sales'],
+      summary: 'Remover venda (restaura estoque se COMPLETED/LOSS)',
+      security: [{ BearerAuth: [] }],
+      params: idParamSchema,
+      response: {
+        204: z.null(),
+        404: errorSchema,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
 
     try {
       await prisma.$transaction(async (tx) => {
@@ -331,7 +397,7 @@ export async function saleRoutes(app: FastifyInstance) {
         });
       });
 
-      return reply.status(204).send();
+      return reply.status(204).send(null);
     } catch (error) {
       if (error instanceof Error) {
         if (error.message === 'Sale not found') {

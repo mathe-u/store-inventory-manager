@@ -1,17 +1,76 @@
 import { type FastifyInstance } from 'fastify';
+import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { PricingService } from '../services/pricingService.js';
 
-export async function productRoutes(app: FastifyInstance) {
+const categorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  color: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+}).nullable();
+
+const productSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  imageUrl: z.string().nullable(),
+  stockQuantity: z.number(),
+  minStockAlert: z.number(),
+  metadata: z.string(),
+  acquisitionCost: z.number(),
+  shippingCost: z.number(),
+  taxRate: z.number(),
+  directCosts: z.number(),
+  timeSpent: z.number(),
+  lossIndex: z.number(),
+  desiredMargin: z.number(),
+  categoryId: z.string().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  category: categorySchema,
+});
+
+const errorSchema = z.object({ message: z.string() });
+const idParamSchema = z.object({ id: z.uuid() });
+
+const productBodySchema = z.object({
+  name: z.string(),
+  imageUrl: z.string().optional(),
+  stockQuantity: z.number().int().default(0),
+  minStockAlert: z.number().int().default(5),
+  metadata: z.record(z.string(), z.any()),
+  acquisitionCost: z.number().default(0),
+  shippingCost: z.number().default(0),
+  taxRate: z.number().default(0),
+  directCosts: z.number().default(0),
+  timeSpent: z.number().default(0),
+  lossIndex: z.number().default(0),
+  desiredMargin: z.number().default(0.30),
+  categoryId: z.uuid().optional(),
+});
+
+export async function productRoutes(fastify: FastifyInstance) {
+  const app = fastify.withTypeProvider<ZodTypeProvider>();
   app.addHook('preHandler', app.authenticate);
 
   // List all products (includes category)
-  app.get('/', async (request) => {
-    const querySchema = z.object({
-      search: z.string().optional(),
-    });
-    const { search } = querySchema.parse(request.query);
+  app.get('/', {
+    schema: {
+      tags: ['Products'],
+      summary: 'Listar todos os produtos',
+      security: [{ BearerAuth: [] }],
+      querystring: z.object({
+        search: z.string().optional(),
+      }),
+      response: {
+        200: z.array(productSchema),
+      },
+    },
+  }, async (request) => {
+    const { search } = request.query;
 
     const filter = search
       ? {
@@ -22,7 +81,6 @@ export async function productRoutes(app: FastifyInstance) {
           ],
         }
       : {};
-    
 
     const products = await prisma.product.findMany({
       where: filter,
@@ -33,24 +91,18 @@ export async function productRoutes(app: FastifyInstance) {
   });
 
   // Create product
-  app.post('/', async (request, reply) => {
-    const productSchema = z.object({
-      name: z.string(),
-      imageUrl: z.string().optional(),
-      stockQuantity: z.number().int().default(0),
-      minStockAlert: z.number().int().default(5),
-      metadata: z.record(z.string(), z.any()),
-      acquisitionCost: z.number().default(0),
-      shippingCost: z.number().default(0),
-      taxRate: z.number().default(0),        // stored as decimal: 0.18 = 18%
-      directCosts: z.number().default(0),
-      timeSpent: z.number().default(0),
-      lossIndex: z.number().default(0),      // stored as decimal: 0.05 = 5%
-      desiredMargin: z.number().default(0.30), // stored as decimal: 0.30 = 30%
-      categoryId: z.uuid().optional(),
-    });
-
-    const body = productSchema.parse(request.body);
+  app.post('/', {
+    schema: {
+      tags: ['Products'],
+      summary: 'Criar novo produto',
+      security: [{ BearerAuth: [] }],
+      body: productBodySchema,
+      response: {
+        201: productSchema,
+      },
+    },
+  }, async (request, reply) => {
+    const body = request.body;
 
     const product = await prisma.product.create({
       data: {
@@ -66,9 +118,26 @@ export async function productRoutes(app: FastifyInstance) {
   });
 
   // Get single product with pricing calculation
-  app.get('/:id', async (request, reply) => {
-    const paramsSchema = z.object({ id: z.uuid() });
-    const { id } = paramsSchema.parse(request.params);
+  app.get('/:id', {
+    schema: {
+      tags: ['Products'],
+      summary: 'Buscar produto por ID (com cálculo de precificação)',
+      security: [{ BearerAuth: [] }],
+      params: idParamSchema,
+      response: {
+        200: productSchema.extend({
+          pricing: z.object({
+            totalBaseCost: z.number(),
+            suggestedPrice: z.number(),
+            markup: z.number(),
+            netProfit: z.number(),
+          }),
+        }),
+        404: errorSchema,
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
 
     const product = await prisma.product.findUnique({
       where: { id },
@@ -104,27 +173,35 @@ export async function productRoutes(app: FastifyInstance) {
   });
 
   // Update product
-  app.put('/:id', async (request) => {
-    const paramsSchema = z.object({ id: z.uuid() });
-    const { id } = paramsSchema.parse(request.params);
+  app.put('/:id', {
+    schema: {
+      tags: ['Products'],
+      summary: 'Atualizar produto',
+      security: [{ BearerAuth: [] }],
+      params: idParamSchema,
+      body: z.object({
+        name: z.string().optional(),
+        imageUrl: z.string().nullable().optional(),
+        stockQuantity: z.number().int().optional(),
+        minStockAlert: z.number().int().optional(),
+        metadata: z.record(z.string(), z.any()).optional(),
+        acquisitionCost: z.number().optional(),
+        shippingCost: z.number().optional(),
+        taxRate: z.number().optional(),
+        directCosts: z.number().optional(),
+        timeSpent: z.number().optional(),
+        lossIndex: z.number().optional(),
+        desiredMargin: z.number().optional(),
+        categoryId: z.uuid().nullable().optional(),
+      }),
+      response: {
+        200: productSchema,
+      },
+    },
+  }, async (request) => {
+    const { id } = request.params;
+    const body = request.body;
 
-    const productSchema = z.object({
-      name: z.string().optional(),
-      imageUrl: z.string().nullable().optional(),
-      stockQuantity: z.number().int().optional(),
-      minStockAlert: z.number().int().optional(),
-      metadata: z.record(z.string(), z.any()).optional(),
-      acquisitionCost: z.number().optional(),
-      shippingCost: z.number().optional(),
-      taxRate: z.number().optional(),
-      directCosts: z.number().optional(),
-      timeSpent: z.number().optional(),
-      lossIndex: z.number().optional(),
-      desiredMargin: z.number().optional(),
-      categoryId: z.uuid().nullable().optional(),
-    });
-
-    const body = productSchema.parse(request.body);
     const updateData = {
       ...body,
       metadata: body.metadata ? JSON.stringify(body.metadata) : undefined,
@@ -140,11 +217,20 @@ export async function productRoutes(app: FastifyInstance) {
   });
 
   // Delete product
-  app.delete('/:id', async (request, reply) => {
-    const paramsSchema = z.object({ id: z.uuid() });
-    const { id } = paramsSchema.parse(request.params);
+  app.delete('/:id', {
+    schema: {
+      tags: ['Products'],
+      summary: 'Remover produto',
+      security: [{ BearerAuth: [] }],
+      params: idParamSchema,
+      response: {
+        204: z.null(),
+      },
+    },
+  }, async (request, reply) => {
+    const { id } = request.params;
 
     await prisma.product.delete({ where: { id } });
-    return reply.status(204).send();
+    return reply.status(204).send(null);
   });
 }

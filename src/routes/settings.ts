@@ -1,11 +1,39 @@
 import { type FastifyInstance } from 'fastify';
+import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 
-export async function settingsRoutes(app: FastifyInstance) {
+const settingsSchema = z.object({
+  id: z.string(),
+  hourlyRate: z.number(),
+  defaultTaxRate: z.number(),
+  fixedMonthlyCosts: z.number(),
+  variableMonthlyCosts: z.number(),
+  investmentRate: z.number(),
+});
+
+const settingsBodySchema = z.object({
+  hourlyRate: z.number().optional(),
+  defaultTaxRate: z.number().optional(),
+  fixedMonthlyCosts: z.number().optional(),
+  variableMonthlyCosts: z.number().optional(),
+  investmentRate: z.number().optional(),
+});
+
+export async function settingsRoutes(fastify: FastifyInstance) {
+  const app = fastify.withTypeProvider<ZodTypeProvider>();
   app.addHook('preHandler', app.authenticate);
 
-  app.get('/', async () => {
+  app.get('/', {
+    schema: {
+      tags: ['Settings'],
+      summary: 'Obter configurações globais da loja',
+      security: [{ BearerAuth: [] }],
+      response: {
+        200: settingsSchema,
+      },
+    },
+  }, async () => {
     const settings = await prisma.globalSettings.findUnique({
       where: { id: 'default' },
     });
@@ -19,16 +47,18 @@ export async function settingsRoutes(app: FastifyInstance) {
     return settings;
   });
 
-  app.put('/', async (request) => {
-    const settingsSchema = z.object({
-      hourlyRate: z.number().optional(),
-      defaultTaxRate: z.number().optional(),
-      fixedMonthlyCosts: z.number().optional(),
-      variableMonthlyCosts: z.number().optional(),
-      investmentRate: z.number().optional(),
-    });
-
-    const data = settingsSchema.parse(request.body);
+  app.put('/', {
+    schema: {
+      tags: ['Settings'],
+      summary: 'Atualizar configurações globais da loja',
+      security: [{ BearerAuth: [] }],
+      body: settingsBodySchema,
+      response: {
+        200: settingsSchema,
+      },
+    },
+  }, async (request) => {
+    const data = request.body;
 
     const settings = await prisma.globalSettings.upsert({
       where: { id: 'default' },

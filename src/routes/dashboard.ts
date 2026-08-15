@@ -1,19 +1,67 @@
 import { type FastifyInstance } from 'fastify';
+import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 // import type { Category } from '../generated/prisma/index.js';
 
-export async function dashboardRoutes(app: FastifyInstance) {
+const monthlyStatSchema = z.object({
+  date: z.string(),
+  grossRevenue: z.number(),
+  costs: z.number(),
+});
+
+const marginBreakdownSchema = z.object({
+  netProfit: z.number(),
+  costs: z.number(),
+  deliveryTax: z.number(),
+});
+
+const topSellingItemSchema = z.object({
+  productId: z.string(),
+  name: z.string(),
+  category: z.string().nullable(),
+  quantity: z.number(),
+});
+
+const dashboardStatsSchema = z.object({
+  grossRevenue: z.number(),
+  grossRevenueDelta: z.number(),
+  netRevenue: z.number(),
+  grossProfit: z.number(),
+  netProfit: z.number(),
+  netProfitDelta: z.number(),
+  totalOrders: z.number(),
+  totalOrdersDelta: z.number(),
+  monthlyStats: z.array(monthlyStatSchema),
+  marginBreakdown: marginBreakdownSchema,
+  topSelling: z.array(topSellingItemSchema),
+});
+
+const priceEvolutionItemSchema = z.object({
+  date: z.string(),
+  price: z.number(),
+});
+
+export async function dashboardRoutes(fastify: FastifyInstance) {
+  const app = fastify.withTypeProvider<ZodTypeProvider>();
   app.addHook('preHandler', app.authenticate);
 
-  app.get('/stats', async (request) => {
-    const querySchema = z.object({
-      days: z.coerce.number().positive().optional()
-    });
+  app.get('/stats', {
+    schema: {
+      tags: ['Dashboard'],
+      summary: 'Obter estatísticas gerais do dashboard',
+      security: [{ BearerAuth: [] }],
+      querystring: z.object({
+        days: z.coerce.number().positive().optional().describe('Filtrar por últimos N dias'),
+      }),
+      response: {
+        200: dashboardStatsSchema,
+      },
+    },
+  }, async (request) => {
+    const { days } = request.query;
 
-    const { days } = querySchema.parse(request.query);
-
-    let dateFilter = {};
+    let dateFilter = {}
     let previousDateFilter = {}
 
     if (days) {
@@ -158,13 +206,21 @@ export async function dashboardRoutes(app: FastifyInstance) {
     };
   });
 
-  app.get('/price-evolution/:productId', async (request) => {
+  app.get('/price-evolution/:productId', {
+    schema: {
+      tags: ['Dashboard'],
+      summary: 'Evolução de preço de venda de um produto ao longo do tempo',
+      security: [{ BearerAuth: [] }],
+      params: z.object({ productId: z.uuid() }),
+      querystring: z.object({ days: z.coerce.number().positive().optional() }),
+      response: {
+        200: z.array(priceEvolutionItemSchema),
+      },
+    },
+  }, async (request) => {
     // TODO: tratar dias que nao houver nunhuma venda
-    const paramsSchema = z.object({ productId: z.uuid() });
-    const querySchema = z.object({ days: z.coerce.number().positive().optional() });
-
-    const { productId } = paramsSchema.parse(request.params);
-    const { days } = querySchema.parse(request.query);
+    const { productId } = request.params;
+    const { days } = request.query;
 
     let dateFilter = {};
   if (days) {
