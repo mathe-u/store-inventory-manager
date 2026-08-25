@@ -19,7 +19,7 @@ const saleSchema = z.object({
 });
 
 const errorSchema = z.object({ message: z.string() });
-const idParamSchema = z.object({ id: z.string().uuid() });
+const idParamSchema = z.object({ id: z.uuid() });
 
 const createSaleBodySchema = z.object({
   productId: z.uuid(),
@@ -88,8 +88,8 @@ export async function saleRoutes(fastify: FastifyInstance) {
         const saleProfit = status === 'LOSS'
           ? -pricing.totalBaseCost * quantity
           : status === 'RETURNED'
-          ? 0
-          : pricing.marginAtPrice(finalPrice).netProfit * quantity;
+            ? 0
+            : pricing.marginAtPrice(finalPrice).netProfit * quantity;
 
         // Create sale record
         const sale = await tx.sale.create({
@@ -172,7 +172,7 @@ export async function saleRoutes(fastify: FastifyInstance) {
         ...(status ? { status } : {}),
         ...(productName ? {
           product: {
-            name: {contains: productName }
+            name: { contains: productName }
           }
         } : {}),
       },
@@ -273,8 +273,8 @@ export async function saleRoutes(fastify: FastifyInstance) {
         const saleProfit = newStatus === 'LOSS'
           ? -pricing.totalBaseCost * newQuantity
           : newStatus === 'RETURNED'
-          ? 0
-          : pricing.marginAtPrice(newFinalPrice).netProfit * newQuantity;
+            ? 0
+            : pricing.marginAtPrice(newFinalPrice).netProfit * newQuantity;
 
         // Update the sale
         const updatedSale = await tx.sale.update({

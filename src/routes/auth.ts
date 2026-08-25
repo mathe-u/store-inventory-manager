@@ -18,7 +18,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   app.post('/register', {
     schema: {
       tags: ['Auth'],
-      summary: 'Registrar novo usuário',
+      summary: 'Register new user',
       body: z.object({
         name: z.string(),
         email: z.email(),
@@ -61,7 +61,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     },
     schema: {
       tags: ['Auth'],
-      summary: 'Autenticar usuário e obter token JWT',
+      summary: 'Authenticate user and get JWT token',
       body: z.object({
         email: z.email(),
         password: z.string(),
@@ -92,12 +92,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.send({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   });
 
-  // Rota de logout para invalidar o token atual
   app.post('/logout', {
     preHandler: app.authenticate,
     schema: {
       tags: ['Auth'],
-      summary: 'Invalidar token JWT (logout)',
+      summary: 'Invalidate JWT token (logout)',
       security: [{ BearerAuth: [] }],
       response: {
         200: z.object({ message: z.string() }),
@@ -112,7 +111,6 @@ export async function authRoutes(fastify: FastifyInstance) {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Salva o token na blacklist
     await prisma.revokedToken.create({
       data: { token }
     });
