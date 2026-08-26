@@ -77,7 +77,7 @@ describe('Payment Routes', () => {
 
     describe('GET /seed (Seed Default Payment Methods)', () => {
         it('should seed default payment methods and return 200', async () => {
-            vi.mocked(prisma.paymentMethod.upsert).mockResolvedValue({} as any);
+            vi.mocked(prisma.paymentMethod.upsert).mockResolvedValue(makePaymentMethod({ id: 'cash' }));
 
             const response = await app.inject({
                 method: 'GET',

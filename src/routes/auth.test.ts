@@ -198,7 +198,7 @@ describe('Auth Routes', () => {
         it('should return error 401 when trying to login with an inactive user', async () => {
             const user = { ...makeUser(), isActive: false };
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(user as any);
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(user);
 
             const response = await app.inject({
                 method: 'POST',
@@ -257,7 +257,7 @@ describe('Auth Routes', () => {
         it('should logout and save token to revoked tokens', async () => {
             const user = makeUser();
 
-            vi.mocked(prisma.revokedToken.create).mockResolvedValue({} as any);
+            vi.mocked(prisma.revokedToken.create).mockResolvedValue({} as never);
 
             const validToken = app.jwt.sign({ sub: user.id } as never);
 
@@ -288,9 +288,9 @@ describe('Auth Routes', () => {
         it('should return error 401 when trying to logout with an expired token', async () => {
             const user = makeUser();
 
-            vi.mocked(prisma.revokedToken.create).mockResolvedValue({} as any);
+            vi.mocked(prisma.revokedToken.create).mockResolvedValue({} as never);
 
-            const expiredToken = app.jwt.sign({ sub: user.id } as any, { expiresIn: '-10s' });
+            const expiredToken = app.jwt.sign({ sub: user.id } as never, { expiresIn: '-10s' });
 
             const response = await app.inject({
                 method: 'POST',

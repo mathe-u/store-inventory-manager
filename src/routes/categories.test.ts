@@ -85,7 +85,7 @@ describe('Category Routes', () => {
                 { ...makeCategory({ id: 'category-2', name: 'Cat B' }), _count: { products: 0 } },
             ];
 
-            vi.mocked(prisma.category.findMany).mockResolvedValue(categories as any);
+            vi.mocked(prisma.category.findMany).mockResolvedValue(categories);
 
             const response = await app.inject({
                 method: 'GET',
@@ -168,7 +168,7 @@ describe('Category Routes', () => {
                 _count: { products: 12 },
             };
 
-            vi.mocked(prisma.category.findUnique).mockResolvedValue(category as any);
+            vi.mocked(prisma.category.findUnique).mockResolvedValue(category);
 
             const response = await app.inject({
                 method: 'GET',
