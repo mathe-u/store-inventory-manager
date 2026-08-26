@@ -88,12 +88,15 @@ describe('Auth Routes', () => {
         });
 
         it('should not register a user without "name" field', async () => {
+            const user = makeUser();
+            const plainPassword = 'password123';
+
             const response = await app.inject({
                 method: 'POST',
                 url: '/register',
                 payload: {
-                    email: 'test@example.com',
-                    password: 'password123',
+                    email: user.email,
+                    password: plainPassword,
                 }
             });
 
@@ -104,14 +107,17 @@ describe('Auth Routes', () => {
         });
 
         it('should not register a user with invalid role', async () => {
+            const user = makeUser();
+            const plainPassword = 'password123';
+
             const response = await app.inject({
                 method: 'POST',
                 url: '/register',
                 payload: {
-                    name: 'Test User',
-                    email: 'test@example.com',
-                    password: 'password123',
-                    role: 'SUPER_HERO'
+                    name: user.name,
+                    email: user.email,
+                    password: plainPassword,
+                    role: 'INVALID_ROLE'
                 },
             });
 
@@ -120,14 +126,17 @@ describe('Auth Routes', () => {
         });
 
         it('should not allow registering a user with a weak password', async () => {
+            const user = makeUser();
+            const plainPassword = '12345';
+
             const response = await app.inject({
                 method: 'POST',
                 url: '/register',
                 payload: {
-                    name: 'Test User',
-                    email: 'test@example.com',
-                    password: '12345',
-                    role: 'SELLER',
+                    name: user.name,
+                    email: user.email,
+                    password: plainPassword,
+                    role: user.role,
                 }
             });
 
@@ -138,15 +147,18 @@ describe('Auth Routes', () => {
         });
 
         it('should return error 400 if registering a user that already exists', async () => {
-            vi.mocked(prisma.user.findUnique).mockResolvedValue({ id: 'existing' } as any);
+            const user = makeUser();
+            const plainPassword = 'password123';
+
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(user);
 
             const response = await app.inject({
                 method: 'POST',
                 url: '/register',
                 payload: {
-                    name: 'Test User',
-                    email: 'test@example.com',
-                    password: 'password123',
+                    name: user.name,
+                    email: user.email,
+                    password: plainPassword,
                 }
             });
 
