@@ -212,7 +212,6 @@ describe('Product Routes', () => {
             expect(body.name).toBe('New Product');
             expect(prisma.product.create).toHaveBeenCalledOnce();
 
-            // Verify metadata was serialized to JSON string
             const createCall = vi.mocked(prisma.product.create).mock.calls[0]![0];
             expect(createCall.data.metadata).toBe('{"color":"blue"}');
             expect(createCall.include).toEqual({ category: true });
