@@ -27,9 +27,12 @@ import { uploadRoutes } from './uploads.js';
 
 async function buildTestApp() {
   const app = Fastify();
+
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+
   await app.register(uploadRoutes);
+
   return app;
 }
 
@@ -39,7 +42,7 @@ describe('Upload Routes', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => { });
     app = await buildTestApp();
   });
 
