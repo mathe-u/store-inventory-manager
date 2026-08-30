@@ -2,7 +2,7 @@ import { type Sale } from "../../generated/prisma/index.js";
 
 export function makeSale(override: Partial<Sale> = {}): Sale {
     return {
-        id: 'sale-1-uuid-0000-0000-000000000000',
+        id: '550e8400-e29b-41d4-a716-446655440000',
         productId: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
         quantity: 2,
         finalPrice: 120,
