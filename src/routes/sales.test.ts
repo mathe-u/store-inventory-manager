@@ -12,8 +12,21 @@ import type { FastifyRequest } from 'fastify/types/request.js';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
+// Explicit interface for the transaction client mock to avoid circular type references
+interface TxMock {
+    product: { findUnique: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
+    globalSettings: { findUnique: ReturnType<typeof vi.fn> };
+    sale: {
+        create: ReturnType<typeof vi.fn>;
+        findUnique: ReturnType<typeof vi.fn>;
+        update: ReturnType<typeof vi.fn>;
+        delete: ReturnType<typeof vi.fn>;
+        findMany: ReturnType<typeof vi.fn>;
+    };
+}
+
 // tx object whose methods are re-declared per test via vi.mocked(prisma.$transaction)
-const tx = {
+const tx: TxMock = {
     product: {
         findUnique: vi.fn(),
         update: vi.fn(),
@@ -70,9 +83,9 @@ async function buildTestApp() {
 
 // Makes prisma.$transaction execute the callback synchronously with the shared tx mock
 function setupTransaction() {
-    vi.mocked(prisma.$transaction).mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+    vi.mocked(prisma.$transaction).mockImplementation(((callback: (tx: TxMock) => Promise<unknown>) => {
         return callback(tx);
-    });
+    }) as never);
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
