@@ -90,7 +90,7 @@ describe('User Routes', () => {
                 id, name, email, role, isActive
             }));
 
-            vi.mocked(prisma.user.findMany).mockResolvedValue(expectedUsers as any);
+            vi.mocked(prisma.user.findMany).mockResolvedValue(expectedUsers as never);
 
             const response = await app.inject({
                 method: 'GET',
@@ -160,7 +160,7 @@ describe('User Routes', () => {
                 isActive: user.isActive,
             };
 
-            vi.mocked(prisma.user.findUnique).mockResolvedValue(expectedUser as any);
+            vi.mocked(prisma.user.findUnique).mockResolvedValue(expectedUser as never);
 
             const response = await app.inject({
                 method: 'GET',
@@ -239,7 +239,7 @@ describe('User Routes', () => {
 
             vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
             vi.mocked(bcrypt.hash).mockResolvedValue('hashed_password_123' as never);
-            vi.mocked(prisma.user.create).mockResolvedValue(expectedUser as any);
+            vi.mocked(prisma.user.create).mockResolvedValue(expectedUser as never);
 
             const response = await app.inject({
                 method: 'POST',
@@ -337,7 +337,7 @@ describe('User Routes', () => {
 
             vi.mocked(prisma.user.findUnique).mockResolvedValue(userToUpdate);
             vi.mocked(bcrypt.hash).mockResolvedValue('new_hashed_password' as never);
-            vi.mocked(prisma.user.update).mockResolvedValue(updatedUser as any);
+            vi.mocked(prisma.user.update).mockResolvedValue(updatedUser as never);
 
             const response = await app.inject({
                 method: 'PUT',
@@ -381,7 +381,7 @@ describe('User Routes', () => {
             };
 
             vi.mocked(prisma.user.findUnique).mockResolvedValue(userToUpdate);
-            vi.mocked(prisma.user.update).mockResolvedValue(updatedUser as any);
+            vi.mocked(prisma.user.update).mockResolvedValue(updatedUser as never);
 
             const response = await app.inject({
                 method: 'PUT',
@@ -442,7 +442,7 @@ describe('User Routes', () => {
         it('should set isActive: false on the user and return 204 No Content', async () => {
             const user = makeUser({ id: userId });
             vi.mocked(prisma.user.findUnique).mockResolvedValue(user);
-            vi.mocked(prisma.user.update).mockResolvedValue({} as any);
+            vi.mocked(prisma.user.update).mockResolvedValue({} as never);
 
             const response = await app.inject({
                 method: 'DELETE',
