@@ -15,6 +15,7 @@ vi.mock('../lib/prisma.js', () => ({
             create: vi.fn(),
             update: vi.fn(),
             delete: vi.fn(),
+            count: vi.fn(),
         }
     }
 }));
@@ -83,7 +84,7 @@ describe('User Routes', () => {
     });
 
     describe('GET / (List Users)', () => {
-        it('should return all users with correct fields', async () => {
+        it('should return paginated users with default parameters', async () => {
             const user1 = makeUser({ id: 'user-1', name: 'Alice', email: 'alice@example.com' });
             const user2 = makeUser({ id: 'user-2', name: 'Bob', email: 'bob@example.com' });
             const expectedUsers = [user1, user2].map(({ id, name, email, role, isActive }) => ({
@@ -91,6 +92,7 @@ describe('User Routes', () => {
             }));
 
             vi.mocked(prisma.user.findMany).mockResolvedValue(expectedUsers as never);
+            vi.mocked(prisma.user.count).mockResolvedValue(2);
 
             const response = await app.inject({
                 method: 'GET',
@@ -98,9 +100,23 @@ describe('User Routes', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
+            console.log(response.json());
+
             expect(response.statusCode).toBe(200);
-            expect(response.json()).toEqual(expectedUsers);
+            expect(response.json()).toEqual({
+                users: expectedUsers,
+                meta: {
+                    page: 1,
+                    limit: 10,
+                    total: 2,
+                    totalPages: 1
+                }
+            });
             expect(prisma.user.findMany).toHaveBeenCalledWith({
+                where: {},
+                skip: 0,
+                take: 10,
+                orderBy: { createdAt: 'desc' },
                 select: {
                     id: true,
                     name: true,
@@ -109,6 +125,7 @@ describe('User Routes', () => {
                     isActive: true,
                 }
             });
+            expect(prisma.user.count).toHaveBeenCalledWith({ where: {} });
         });
     });
 
