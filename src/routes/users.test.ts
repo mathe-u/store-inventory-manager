@@ -127,6 +127,31 @@ describe('User Routes', () => {
             });
             expect(prisma.user.count).toHaveBeenCalledWith({ where: {} });
         });
+
+        it('should correctly calculate skip and take for pagination', async () => {
+            vi.mocked(prisma.user.findMany).mockResolvedValue([]);
+            vi.mocked(prisma.user.count).mockResolvedValue(15 as never); // Simula 15 usuários totais
+
+            const response = await app.inject({
+                method: 'GET',
+                url: '/?page=2&limit=5',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            // skip = (page - 1) * limit = (2 - 1) * 5 = 5
+            // take = 5
+            expect(prisma.user.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({ skip: 5, take: 5 })
+            );
+
+            // totalPages deve ser ceil(15 / 5) = 3
+            expect(response.json().meta).toEqual({
+                page: 2,
+                limit: 5,
+                total: 15,
+                totalPages: 3
+            });
+        });
     });
 
     describe('GET /:id (Get User by ID)', () => {
