@@ -130,7 +130,7 @@ describe('User Routes', () => {
 
         it('should correctly calculate skip and take for pagination', async () => {
             vi.mocked(prisma.user.findMany).mockResolvedValue([]);
-            vi.mocked(prisma.user.count).mockResolvedValue(15 as never); // Simula 15 usuários totais
+            vi.mocked(prisma.user.count).mockResolvedValue(15); // Simula 15 usuários totais
 
             const response = await app.inject({
                 method: 'GET',
@@ -151,6 +151,23 @@ describe('User Routes', () => {
                 total: 15,
                 totalPages: 3
             });
+        });
+
+        it('should correctly apply orderBy and order parameters', async () => {
+            vi.mocked(prisma.user.findMany).mockResolvedValue([]);
+            vi.mocked(prisma.user.count).mockResolvedValue(0);
+
+            await app.inject({
+                method: 'GET',
+                url: '/?orderBy=role&order=asc',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            expect(prisma.user.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    orderBy: { role: 'asc' }
+                })
+            );
         });
     });
 
