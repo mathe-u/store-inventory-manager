@@ -13,6 +13,7 @@ vi.mock('../lib/prisma.js', () => ({
     prisma: {
         product: {
             findMany: vi.fn(),
+            count: vi.fn(),
             findUnique: vi.fn(),
             create: vi.fn(),
             update: vi.fn(),
@@ -103,13 +104,14 @@ describe('Product Routes', () => {
     });
 
     describe('GET / (List Products)', () => {
-        it('should return all products with their category', async () => {
+        it('should return paginated products with default parameters', async () => {
             const products = [
                 makeProductWithCategory({ id: 'product-1', name: 'Product A' }),
                 makeProductWithCategory({ id: 'product-2', name: 'Product B' }),
             ];
 
             vi.mocked(prisma.product.findMany).mockResolvedValue(products as never);
+            vi.mocked(prisma.product.count).mockResolvedValue(2);
 
             const response = await app.inject({
                 method: 'GET',
@@ -119,19 +121,29 @@ describe('Product Routes', () => {
 
             expect(response.statusCode).toBe(200);
             const body = response.json();
-            expect(body).toHaveLength(2);
-            expect(body[0].id).toBe('product-1');
-            expect(body[1].id).toBe('product-2');
-            expect(body[0].category).toBeDefined();
+            expect(body.products).toHaveLength(2);
+            expect(body.products[0].id).toBe('product-1');
+            expect(body.products[1].id).toBe('product-2');
+            expect(body.products[0].category).toBeDefined();
+            expect(body.meta).toEqual({
+                page: 1,
+                limit: 10,
+                total: 2,
+                totalPages: 1,
+            });
             expect(prisma.product.findMany).toHaveBeenCalledWith({
                 where: {},
+                skip: 0,
+                take: 10,
                 orderBy: { createdAt: 'desc' },
                 include: { category: true },
             });
+            expect(prisma.product.count).toHaveBeenCalledWith({ where: {} });
         });
 
         it('should filter products when search query parameter is provided', async () => {
             vi.mocked(prisma.product.findMany).mockResolvedValue([]);
+            vi.mocked(prisma.product.count).mockResolvedValue(0);
 
             const response = await app.inject({
                 method: 'GET',
@@ -148,8 +160,40 @@ describe('Product Routes', () => {
                         { category: { name: { contains: 'phone' } } },
                     ],
                 },
+                skip: 0,
+                take: 10,
                 orderBy: { createdAt: 'desc' },
                 include: { category: true },
+            });
+            expect(prisma.product.count).toHaveBeenCalledWith({
+                where: {
+                    OR: [
+                        { name: { contains: 'phone' } },
+                        { category: { name: { contains: 'phone' } } },
+                    ],
+                },
+            });
+        });
+
+        it('should correctly calculate skip and take for pagination', async () => {
+            vi.mocked(prisma.product.findMany).mockResolvedValue([]);
+            vi.mocked(prisma.product.count).mockResolvedValue(15);
+
+            const response = await app.inject({
+                method: 'GET',
+                url: '/?page=2&limit=5',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            expect(prisma.product.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({ skip: 5, take: 5 })
+            );
+
+            expect(response.json().meta).toEqual({
+                page: 2,
+                limit: 5,
+                total: 15,
+                totalPages: 3,
             });
         });
     });
