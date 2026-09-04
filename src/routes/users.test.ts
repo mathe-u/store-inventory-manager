@@ -100,8 +100,6 @@ describe('User Routes', () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            console.log(response.json());
-
             expect(response.statusCode).toBe(200);
             expect(response.json()).toEqual({
                 users: expectedUsers,

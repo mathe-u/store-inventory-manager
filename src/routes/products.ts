@@ -52,6 +52,24 @@ const productBodySchema = z.object({
   categoryId: z.uuid().optional(),
 });
 
+const productQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(10),
+  search: z.string().optional(),
+  // orderBy: z.enum(['role', 'createdAt']).default('createdAt'),
+  // order: z.enum(['asc', 'desc']).default('desc'),
+});
+
+const paginatedProductsSchema = z.object({
+  products: z.array(productSchema),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
+  }),
+});
+
 export async function productRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
   app.addHook('preHandler', app.authenticate);
@@ -62,32 +80,48 @@ export async function productRoutes(fastify: FastifyInstance) {
       tags: ['Products'],
       summary: 'Listar todos os produtos',
       security: [{ BearerAuth: [] }],
-      querystring: z.object({
-        search: z.string().optional(),
-      }),
+      querystring: productQuerySchema,
       response: {
-        200: z.array(productSchema),
+        200: paginatedProductsSchema,
       },
     },
   }, async (request) => {
-    const { search } = request.query;
+    const { page, limit, search } = request.query;
 
     const filter = search
       ? {
-          OR: [
-            { name: { contains: search } },
-            // Busca na tabela relacionada 'category' pelo campo 'name'
-            { category: { name: { contains: search } } },
-          ],
-        }
+        OR: [
+          { name: { contains: search } },
+          // Busca na tabela relacionada 'category' pelo campo 'name'
+          { category: { name: { contains: search } } },
+        ],
+      }
       : {};
 
-    const products = await prisma.product.findMany({
-      where: filter,
-      orderBy: { createdAt: 'desc' },
-      include: { category: true },
-    });
-    return products;
+    const skip = (page - 1) * limit;
+    const take = limit;
+
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where: filter,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: { category: true },
+      }),
+      prisma.product.count({ where: filter }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+    return {
+      products,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
   });
 
   // Create product
