@@ -48,6 +48,7 @@ vi.mock('../lib/prisma.js', () => ({
         $transaction: vi.fn(),
         sale: {
             findMany: vi.fn(),
+            count: vi.fn(),
         },
     },
 }));
@@ -357,7 +358,7 @@ describe('Sale Routes', () => {
 
     // ──────────────────────────────────────────────────────────────────────────
     describe('GET / (List Sales)', () => {
-        it('should return all sales without filters', async () => {
+        it('should return paginated sales without filters', async () => {
             const product = makeProduct({ id: PRODUCT_ID });
             const sales = [
                 { ...makeSale({ id: 'sale-1' }), product: { ...product, category: null }, paymentMethod: { id: 'pm-1', name: 'Cash', icon: null } },
@@ -365,6 +366,7 @@ describe('Sale Routes', () => {
             ];
 
             vi.mocked(prisma.sale.findMany).mockResolvedValue(sales as never);
+            vi.mocked(prisma.sale.count).mockResolvedValue(2);
 
             const response = await app.inject({
                 method: 'GET',
@@ -374,17 +376,27 @@ describe('Sale Routes', () => {
 
             expect(response.statusCode).toBe(200);
             const body = response.json();
-            expect(body).toHaveLength(2);
+            expect(body.sales).toHaveLength(2);
+            expect(body.meta).toEqual({
+                page: 1,
+                limit: 10,
+                total: 2,
+                totalPages: 1,
+            });
             expect(prisma.sale.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
                     where: {},
+                    skip: 0,
+                    take: 10,
                     orderBy: { createdAt: 'desc' },
                 })
             );
+            expect(prisma.sale.count).toHaveBeenCalledWith({ where: {} });
         });
 
         it('should filter sales by status', async () => {
             vi.mocked(prisma.sale.findMany).mockResolvedValue([]);
+            vi.mocked(prisma.sale.count).mockResolvedValue(0);
 
             const response = await app.inject({
                 method: 'GET',
@@ -396,12 +408,18 @@ describe('Sale Routes', () => {
             expect(prisma.sale.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
                     where: { status: 'COMPLETED' },
+                    skip: 0,
+                    take: 10,
                 })
             );
+            expect(prisma.sale.count).toHaveBeenCalledWith({
+                where: { status: 'COMPLETED' },
+            });
         });
 
         it('should filter sales by productName', async () => {
             vi.mocked(prisma.sale.findMany).mockResolvedValue([]);
+            vi.mocked(prisma.sale.count).mockResolvedValue(0);
 
             const response = await app.inject({
                 method: 'GET',
@@ -413,8 +431,36 @@ describe('Sale Routes', () => {
             expect(prisma.sale.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
                     where: { product: { name: { contains: 'Test' } } },
+                    skip: 0,
+                    take: 10,
                 })
             );
+            expect(prisma.sale.count).toHaveBeenCalledWith({
+                where: { product: { name: { contains: 'Test' } } },
+            });
+        });
+
+        it('should correctly calculate skip and take for pagination', async () => {
+            vi.mocked(prisma.sale.findMany).mockResolvedValue([]);
+            vi.mocked(prisma.sale.count).mockResolvedValue(15);
+
+            const response = await app.inject({
+                method: 'GET',
+                url: '/?page=2&limit=5',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(prisma.sale.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({ skip: 5, take: 5 })
+            );
+
+            expect(response.json().meta).toEqual({
+                page: 2,
+                limit: 5,
+                total: 15,
+                totalPages: 3,
+            });
         });
     });
 
