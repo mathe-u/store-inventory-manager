@@ -30,6 +30,23 @@ const createSaleBodySchema = z.object({
   paymentMethodId: z.string().default('cash'),
 });
 
+const saleQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(10),
+  productName: z.string().optional(),
+  status: saleStatusEnum.optional(),
+});
+
+const paginatedSalesSchema = z.object({
+  sales: z.array(z.any()),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
+  }),
+});
+
 export async function saleRoutes(fastify: FastifyInstance) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
   app.addHook('preHandler', app.authenticate);
@@ -156,37 +173,54 @@ export async function saleRoutes(fastify: FastifyInstance) {
       tags: ['Sales'],
       summary: 'Listar vendas',
       security: [{ BearerAuth: [] }],
-      querystring: z.object({
-        productName: z.string().optional(),
-        status: saleStatusEnum.optional(),
-      }),
+      querystring: saleQuerySchema,
       response: {
-        200: z.array(z.any()),
+        200: paginatedSalesSchema,
       },
     },
   }, async (request) => {
-    const { productName, status } = request.query;
+    const { page, limit, productName, status } = request.query;
 
-    const sales = await prisma.sale.findMany({
-      where: {
-        ...(status ? { status } : {}),
-        ...(productName ? {
-          product: {
-            name: { contains: productName }
-          }
-        } : {}),
-      },
-      include: {
+    const where = {
+      ...(status ? { status } : {}),
+      ...(productName ? {
         product: {
-          include: {
-            category: true,
+          name: { contains: productName }
+        }
+      } : {}),
+    };
+
+    const skip = (page - 1) * limit;
+    const take = limit;
+
+    const [sales, total] = await Promise.all([
+      prisma.sale.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          product: {
+            include: {
+              category: true,
+            },
           },
+          paymentMethod: true,
         },
-        paymentMethod: true,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.sale.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+    return {
+      sales,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
       },
-      orderBy: { createdAt: 'desc' },
-    });
-    return sales;
+    };
   });
 
   app.put('/:id', {
