@@ -3,6 +3,7 @@ import { type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { PricingService } from '../services/pricingService.js';
+import { ProductService } from '../services/ProductService.js';
 
 const categorySchema = z.object({
   id: z.string(),
@@ -56,6 +57,7 @@ const productQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(10),
   search: z.string().optional(),
+  categoryId: z.uuid().optional(),
   // orderBy: z.enum(['role', 'createdAt']).default('createdAt'),
   // order: z.enum(['asc', 'desc']).default('desc'),
 });
@@ -86,42 +88,7 @@ export async function productRoutes(fastify: FastifyInstance) {
       },
     },
   }, async (request) => {
-    const { page, limit, search } = request.query;
-
-    const filter = search
-      ? {
-        OR: [
-          { name: { contains: search } },
-          // Busca na tabela relacionada 'category' pelo campo 'name'
-          { category: { name: { contains: search } } },
-        ],
-      }
-      : {};
-
-    const skip = (page - 1) * limit;
-    const take = limit;
-
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where: filter,
-        skip,
-        take,
-        orderBy: { createdAt: 'desc' },
-        include: { category: true },
-      }),
-      prisma.product.count({ where: filter }),
-    ]);
-
-    const totalPages = Math.ceil(total / limit);
-    return {
-      products,
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages,
-      },
-    };
+    return ProductService.list(request.query);
   });
 
   // Create product
