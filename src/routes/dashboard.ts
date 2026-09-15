@@ -31,6 +31,8 @@ const dashboardStatsSchema = z.object({
   netProfitDelta: z.number(),
   totalOrders: z.number(),
   totalOrdersDelta: z.number(),
+  totalProducts: z.number(),
+  totalProductsDelta: z.number(),
   monthlyStats: z.array(monthlyStatSchema),
   marginBreakdown: marginBreakdownSchema,
   topSelling: z.array(topSellingItemSchema),

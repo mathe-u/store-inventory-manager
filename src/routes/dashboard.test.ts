@@ -14,6 +14,9 @@ vi.mock('../lib/prisma.js', () => ({
     sale: {
       findMany: vi.fn(),
     },
+    product: {
+      count: vi.fn(),
+    },
     globalSettings: {
       findUnique: vi.fn(),
     },
@@ -92,6 +95,7 @@ describe('Dashboard Routes', () => {
       it('should return empty stats when there are no sales', async () => {
         vi.mocked(prisma.sale.findMany).mockResolvedValue([]);
         vi.mocked(prisma.globalSettings.findUnique).mockResolvedValue(null);
+        vi.mocked(prisma.product.count).mockResolvedValue(0);
 
         const response = await app.inject({
           method: 'GET',
@@ -109,6 +113,8 @@ describe('Dashboard Routes', () => {
           netProfitDelta: 0,
           totalOrders: 0,
           totalOrdersDelta: 0,
+          totalProducts: 0,
+          totalProductsDelta: 0,
           monthlyStats: [],
           marginBreakdown: {
             netProfit: 0,
@@ -177,6 +183,7 @@ describe('Dashboard Routes', () => {
           ] as never);
 
         vi.mocked(prisma.globalSettings.findUnique).mockResolvedValue(globalSettings);
+        vi.mocked(prisma.product.count).mockResolvedValue(5);
 
         const response = await app.inject({
           method: 'GET',
@@ -200,6 +207,10 @@ describe('Dashboard Routes', () => {
         expect(data.grossRevenueDelta).toBe(0);
         expect(data.netProfitDelta).toBe(0);
         expect(data.totalOrdersDelta).toBe(0);
+
+        // Total products
+        expect(data.totalProducts).toBe(5);
+        expect(data.totalProductsDelta).toBe(0);
 
         // Monthly stats grouped by YYYY-MM
         expect(data.monthlyStats).toHaveLength(2);
@@ -264,6 +275,10 @@ describe('Dashboard Routes', () => {
           .mockResolvedValueOnce([{ ...currentSale, product: { ...product, category: null } }] as never);
 
         vi.mocked(prisma.globalSettings.findUnique).mockResolvedValue(null);
+        vi.mocked(prisma.product.count)
+          .mockResolvedValueOnce(10) // total products
+          .mockResolvedValueOnce(6)  // current period products
+          .mockResolvedValueOnce(3); // previous period products
 
         const response = await app.inject({
           method: 'GET',
@@ -281,6 +296,9 @@ describe('Dashboard Routes', () => {
         expect(data.netProfitDelta).toBe(1);
         // Current total orders = 1, previous = 1 -> delta = (1 - 1) / 1 = 0
         expect(data.totalOrdersDelta).toBe(0);
+        // Current period products = 6, previous = 3 -> delta = (6 - 3) / 3 = 1 (100%)
+        expect(data.totalProducts).toBe(10);
+        expect(data.totalProductsDelta).toBe(1);
       });
 
       it('should return delta = 1 when previous sales are 0 and current sales > 0', async () => {
@@ -301,6 +319,10 @@ describe('Dashboard Routes', () => {
           .mockResolvedValueOnce([{ ...currentSale, product: { ...product, category: null } }] as never);
 
         vi.mocked(prisma.globalSettings.findUnique).mockResolvedValue(null);
+        vi.mocked(prisma.product.count)
+          .mockResolvedValueOnce(1)  // total products
+          .mockResolvedValueOnce(1)  // current period products
+          .mockResolvedValueOnce(0); // previous period products (empty)
 
         const response = await app.inject({
           method: 'GET',
@@ -315,6 +337,8 @@ describe('Dashboard Routes', () => {
         expect(data.grossRevenueDelta).toBe(1);
         expect(data.netProfitDelta).toBe(1);
         expect(data.totalOrdersDelta).toBe(1);
+        expect(data.totalProducts).toBe(1);
+        expect(data.totalProductsDelta).toBe(1);
       });
     });
   });

@@ -69,11 +69,17 @@ export class DashboardService {
       : 0;
     const deliveryTaxPercent = hasRevenue ? totalShippingAndTaxes / totalRevenueCompleted : 0;
 
-    const previousSales = days
-      ? await prisma.sale.findMany({
-          where: previousDateFilter,
-        })
-      : [];
+    const [previousSales, totalProducts, currentPeriodProducts, previousPeriodProducts] =
+      await Promise.all([
+        days
+          ? prisma.sale.findMany({
+              where: previousDateFilter,
+            })
+          : Promise.resolve([]),
+        prisma.product.count(),
+        days ? prisma.product.count({ where: dateFilter }) : Promise.resolve(0),
+        days ? prisma.product.count({ where: previousDateFilter }) : Promise.resolve(0),
+      ]);
 
     const grossRevenue = sales.reduce(
       (acc, sale) => acc + sale.finalPrice * sale.quantity,
@@ -105,6 +111,7 @@ export class DashboardService {
     const grossRevenueDelta = calculateDelta(grossRevenue, previousGrossRevenue);
     const netProfitDelta = calculateDelta(netProfit, previousNetProfit);
     const totalOrdersDelta = calculateDelta(totalOrders, previousTotalOrders);
+    const totalProductsDelta = calculateDelta(currentPeriodProducts, previousPeriodProducts);
 
     // Group by month
     const monthlyStats: Record<string, { grossRevenue: number; costs: number }> = {};
@@ -157,6 +164,8 @@ export class DashboardService {
       netProfitDelta,
       totalOrders,
       totalOrdersDelta,
+      totalProducts,
+      totalProductsDelta,
       monthlyStats: Object.entries(monthlyStats).map(([date, data]) => ({ date, ...data })),
       marginBreakdown: {
         netProfit: Number(netProfitPercent.toFixed(1)),
