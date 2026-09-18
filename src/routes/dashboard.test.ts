@@ -16,6 +16,7 @@ vi.mock('../lib/prisma.js', () => ({
     },
     product: {
       count: vi.fn(),
+      aggregate: vi.fn(),
     },
     globalSettings: {
       findUnique: vi.fn(),
@@ -95,6 +96,7 @@ describe('Dashboard Routes', () => {
       it('should return empty stats when there are no sales', async () => {
         vi.mocked(prisma.sale.findMany).mockResolvedValue([]);
         vi.mocked(prisma.globalSettings.findUnique).mockResolvedValue(null);
+        vi.mocked(prisma.product.aggregate).mockResolvedValue({ _sum: { stockQuantity: 0 } } as never);
         vi.mocked(prisma.product.count).mockResolvedValue(0);
 
         const response = await app.inject({
@@ -183,6 +185,7 @@ describe('Dashboard Routes', () => {
           ] as never);
 
         vi.mocked(prisma.globalSettings.findUnique).mockResolvedValue(globalSettings);
+        vi.mocked(prisma.product.aggregate).mockResolvedValue({ _sum: { stockQuantity: 5 } } as never);
         vi.mocked(prisma.product.count).mockResolvedValue(5);
 
         const response = await app.inject({
@@ -275,8 +278,8 @@ describe('Dashboard Routes', () => {
           .mockResolvedValueOnce([{ ...currentSale, product: { ...product, category: null } }] as never);
 
         vi.mocked(prisma.globalSettings.findUnique).mockResolvedValue(null);
+        vi.mocked(prisma.product.aggregate).mockResolvedValue({ _sum: { stockQuantity: 10 } } as never);
         vi.mocked(prisma.product.count)
-          .mockResolvedValueOnce(10) // total products
           .mockResolvedValueOnce(6)  // current period products
           .mockResolvedValueOnce(3); // previous period products
 
@@ -319,8 +322,8 @@ describe('Dashboard Routes', () => {
           .mockResolvedValueOnce([{ ...currentSale, product: { ...product, category: null } }] as never);
 
         vi.mocked(prisma.globalSettings.findUnique).mockResolvedValue(null);
+        vi.mocked(prisma.product.aggregate).mockResolvedValue({ _sum: { stockQuantity: 1 } } as never);
         vi.mocked(prisma.product.count)
-          .mockResolvedValueOnce(1)  // total products
           .mockResolvedValueOnce(1)  // current period products
           .mockResolvedValueOnce(0); // previous period products (empty)
 
