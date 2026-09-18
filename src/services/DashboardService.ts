@@ -69,17 +69,23 @@ export class DashboardService {
       : 0;
     const deliveryTaxPercent = hasRevenue ? totalShippingAndTaxes / totalRevenueCompleted : 0;
 
-    const [previousSales, totalProducts, currentPeriodProducts, previousPeriodProducts] =
+    const [previousSales, totalProductsResult, currentPeriodProducts, previousPeriodProducts] =
       await Promise.all([
         days
           ? prisma.sale.findMany({
               where: previousDateFilter,
             })
           : Promise.resolve([]),
-        prisma.product.count(),
+        prisma.product.aggregate({
+          _sum: {
+            stockQuantity: true,
+          },
+        }),
         days ? prisma.product.count({ where: dateFilter }) : Promise.resolve(0),
         days ? prisma.product.count({ where: previousDateFilter }) : Promise.resolve(0),
       ]);
+
+    const totalProducts = totalProductsResult._sum.stockQuantity ?? 0;
 
     const grossRevenue = sales.reduce(
       (acc, sale) => acc + sale.finalPrice * sale.quantity,
